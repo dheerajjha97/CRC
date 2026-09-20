@@ -1,653 +1,252 @@
-import React, { useState, useEffect } from 'react';
-import { CrcProfile, ClusterSchool } from '../types';
+import React, { useState } from 'react';
+import { CrcProfile } from '../types';
+import { BiharEducationLogo } from './BiharEducationLogo';
 import { 
   Building2, 
   Save, 
   CheckCircle2, 
-  School, 
-  Plus, 
-  Trash2, 
-  UserCheck, 
-  MapPin, 
+  Phone, 
   Mail, 
-  Phone,
-  Tag
+  MapPin, 
+  UserCheck, 
+  FileText,
+  Sparkles,
+  RotateCcw
 } from 'lucide-react';
-import { DEFAULT_DESIGNATIONS } from './TeacherManagement';
-import { BiharEducationLogo } from './BiharEducationLogo';
 
 interface CrcProfileSettingsProps {
   profile: CrcProfile;
-  schools: ClusterSchool[];
-  onSaveProfile: (profile: CrcProfile) => Promise<void>;
-  onAddSchool: (school: Omit<ClusterSchool, 'id'>) => Promise<void>;
-  onDeleteSchool: (id: string) => Promise<void>;
-  onCleanupDemoData?: () => Promise<{ deletedTeachers: number; deletedSchools: number }>;
+  onSaveProfile: (updatedProfile: CrcProfile) => Promise<void>;
 }
 
 export const CrcProfileSettings: React.FC<CrcProfileSettingsProps> = ({
   profile,
-  schools,
-  onSaveProfile,
-  onAddSchool,
-  onDeleteSchool,
-  onCleanupDemoData
+  onSaveProfile
 }) => {
   const [formData, setFormData] = useState<CrcProfile>({ ...profile });
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const [isCleaningDemo, setIsCleaningDemo] = useState(false);
-  const [cleanDemoMessage, setCleanDemoMessage] = useState<string | null>(null);
 
-  // New School Form
-  const [newSchool, setNewSchool] = useState({
-    name: '',
-    udiseCode: '',
-    category: 'प्राथमिक शाला',
-    village: ''
-  });
-  const [isAddingSchool, setIsAddingSchool] = useState(false);
-  const [schoolToDelete, setSchoolToDelete] = useState<ClusterSchool | null>(null);
-  const [isDeletingSchool, setIsDeletingSchool] = useState(false);
-  const [deleteSchoolMessage, setDeleteSchoolMessage] = useState<string | null>(null);
-
-  // Custom Designation Master State
-  const [designations, setDesignations] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('crc_designations_list');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {
-      // ignore
-    }
-    return DEFAULT_DESIGNATIONS;
-  });
-  const [newDesigInput, setNewDesigInput] = useState('');
-  const [desigSuccessMsg, setDesigSuccessMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('crc_designations_list', JSON.stringify(designations));
-    } catch {
-      // ignore
-    }
-  }, [designations]);
-
-  const handleAddDesig = () => {
-    const val = newDesigInput.trim();
-    if (!val) return;
-    if (!designations.includes(val)) {
-      setDesignations(prev => [...prev, val]);
-      setDesigSuccessMsg(`पदनाम "${val}" सूची में जोड़ा गया!`);
-      setTimeout(() => setDesigSuccessMsg(null), 3000);
-    }
-    setNewDesigInput('');
+  const handleChange = <K extends keyof CrcProfile>(field: K, value: CrcProfile[K]) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
-  const handleRemoveDesig = (d: string) => {
-    setDesignations(prev => prev.filter(item => item !== d));
-  };
-
-  const handleSubmitProfile = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    setSavedSuccess(false);
     try {
       await onSaveProfile(formData);
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 4000);
     } catch (err) {
-      console.error(err);
+      console.error('Error saving profile:', err);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleCreateSchool = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSchool.name.trim()) return;
-    setIsAddingSchool(true);
-    try {
-      await onAddSchool(newSchool);
-      setNewSchool({
-        name: '',
-        udiseCode: '',
-        category: 'प्राथमिक शाला',
-        village: ''
-      });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsAddingSchool(false);
-    }
-  };
-
-  const handleConfirmDeleteSchool = async () => {
-    if (!schoolToDelete) return;
-    setIsDeletingSchool(true);
-    try {
-      const schName = schoolToDelete.name;
-      await onDeleteSchool(schoolToDelete.id);
-      setSchoolToDelete(null);
-      setDeleteSchoolMessage(`शाला "${schName}" को सूची से हटा दिया गया है।`);
-      setTimeout(() => setDeleteSchoolMessage(null), 3500);
-    } catch (err) {
-      console.error('Error deleting school:', err);
-    } finally {
-      setIsDeletingSchool(false);
-    }
-  };
-
   return (
-    <div id="crc-settings-section" className="space-y-8">
-      {/* Office Profile & Official Letterhead Config */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6">
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <BiharEducationLogo size={60} customUrl={formData.logoUrl} />
           <div>
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <Building2 className="w-6 h-6 text-indigo-600" />
-              संकुल संसाधन केंद्र (CRC) कार्यालयीन प्रोफाइल एवं लेटरहेड
+            <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
+              शिक्षा विभाग • बिहार सरकार
+            </span>
+            <h2 className="text-xl font-bold text-white">
+              संकुल संसाधन केंद्र (CRC) प्रोफ़ाइल एवं लेटरहेड सेटिंग्स
             </h2>
-            <p className="text-sm text-slate-600 mt-1">
-              यह जानकारी सभी आदेशों, पत्रों एवं PDF के शीर्ष लेटरहेड और हस्ताक्षर मुहर में स्वतः मुद्रित होगी
+            <p className="text-xs text-slate-300 mt-0.5">
+              सभी शासकीय आदेशों के शीर्ष (Letterhead) एवं हस्ताक्षरकर्ता की अधिकृत जानकारी
             </p>
           </div>
-
-          {savedSuccess && (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded-lg font-semibold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              सफलतापूर्वक सहेजा गया!
-            </div>
-          )}
         </div>
 
-        <form onSubmit={handleSubmitProfile} className="space-y-5">
+        {savedSuccess && (
+          <div className="flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-400 text-emerald-200 px-3 py-1.5 rounded-xl text-xs font-semibold animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            सेटिंग्स सुरक्षित हो गई!
+          </div>
+        )}
+      </div>
+
+      {/* Main Settings Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Section 1: CRC Center Identity */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+            <Building2 className="w-4 h-4 text-indigo-600" />
+            संकुल एवं प्रशासनिक विवरण (CRC Details)
+          </h3>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                संकुल का पूरा नाम (लेटरहेड शीर्षक) <span className="text-red-500">*</span>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                संकुल का नाम (CRC Name) *
               </label>
               <input
                 type="text"
                 required
                 value={formData.clusterName}
-                onChange={(e) => setFormData({ ...formData, clusterName: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 font-semibold focus:ring-2 focus:ring-indigo-500"
-                placeholder="उदा. संकुल संसाधन केंद्र (CRC) - शासकीय उच्चतर माध्यमिक विद्यालय..."
+                onChange={(e) => handleChange('clusterName', e.target.value)}
+                placeholder="उदा. संकुल संसाधन केंद्र, उ.मा.वि. सरैया"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                विकासखंड (Block) <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                प्रखंड / विकासखंड (Block) *
               </label>
               <input
                 type="text"
                 required
                 value={formData.blockName}
-                onChange={(e) => setFormData({ ...formData, blockName: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                placeholder="उदा. सदर"
+                onChange={(e) => handleChange('blockName', e.target.value)}
+                placeholder="उदा. गायघाट / सरैया"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                जिला <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                जिला (District) *
               </label>
               <input
                 type="text"
                 required
                 value={formData.districtName}
-                onChange={(e) => setFormData({ ...formData, districtName: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                placeholder="उदा. रायपुर"
+                onChange={(e) => handleChange('districtName', e.target.value)}
+                placeholder="उदा. मुजफ्फरपुर / पटना"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                संकुल प्राचार्य / समन्वयक का नाम <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                राज्य (State)
               </label>
               <input
                 type="text"
-                required
-                value={formData.centerHead}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  centerHead: e.target.value,
-                  defaultSignatory: e.target.value 
-                })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                placeholder="उदा. डॉ. रमेश कुमार वर्मा"
+                value={formData.stateName || 'बिहार'}
+                onChange={(e) => handleChange('stateName', e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-medium"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2: Default Signatory Details */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+            <UserCheck className="w-4 h-4 text-emerald-600" />
+            अधिकृत हस्ताक्षरकर्ता (Signatory Officer)
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                संकुल प्राचार्य / समन्वयक का नाम
+              </label>
+              <input
+                type="text"
+                value={formData.centerHead || ''}
+                onChange={(e) => {
+                  handleChange('centerHead', e.target.value);
+                  handleChange('defaultSignatory', e.target.value);
+                }}
+                placeholder="उदा. श्री आनंद कुमार"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                पदनाम <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                पदनाम (Designation)
               </label>
               <input
                 type="text"
-                required
-                value={formData.headDesignation}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  headDesignation: e.target.value,
-                  defaultDesignation: e.target.value 
-                })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                value={formData.headDesignation || ''}
+                onChange={(e) => {
+                  handleChange('headDesignation', e.target.value);
+                  handleChange('defaultDesignation', e.target.value);
+                }}
                 placeholder="उदा. प्राचार्य / संकुल समन्वयक"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>
+          </div>
+        </div>
 
+        {/* Section 3: Letterhead Dispatch Prefix & Contact */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+            <FileText className="w-4 h-4 text-amber-600" />
+            पत्र क्रमांक प्रीफ़िक्स एवं संपर्क सूत्र
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                कार्यालयीन पत्र क्रमांक पूर्वपद (Letter Prefix)
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                डिफ़ॉल्ट पत्र क्रमांक प्रीफ़िक्स
               </label>
               <input
                 type="text"
                 value={formData.letterPrefix}
-                onChange={(e) => setFormData({ ...formData, letterPrefix: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 font-mono focus:ring-2 focus:ring-indigo-500"
-                placeholder="उदा. क्र./सं.सं.के./2026/"
+                onChange={(e) => handleChange('letterPrefix', e.target.value)}
+                placeholder="क्र./सं.सं.के./2026/"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800"
               />
+              <span className="text-[10px] text-slate-500 mt-1 block">
+                जावक पंजी के अनुसार स्वचालित संख्या जुड़ेगी (जैसे .../01, .../02)
+              </span>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                कार्यालय फोन / मोबाइल
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                दूरभाष / मोबाइल
               </label>
               <input
-                type="text"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                placeholder="उदा. +91 98765 43210"
+                type="tel"
+                value={formData.phone || ''}
+                onChange={(e) => handleChange('phone', e.target.value)}
+                placeholder="+91 9XXXXXXXXX"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-medium"
               />
             </div>
 
-            <div className="md:col-span-2 bg-gradient-to-r from-amber-50/80 to-indigo-50/80 border border-slate-300 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-indigo-600" />
-                  आदेश पत्र एवं पीडीएफ हेतु आधिकारिक लोगो चयन (Official Logo)
-                </label>
-                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
-                  {formData.logoVariant === 'bepc' ? 'बिहार शिक्षा परियोजना सक्रिय' : 'शिक्षा विभाग, बिहार सरकार सक्रिय'}
-                </span>
-              </div>
-
-              {/* Logo Choice Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                {/* Choice 1: शिक्षा विभाग, बिहार सरकार (Image 6) */}
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, logoVariant: 'shiksha_vibhag', logoUrl: '' })}
-                  className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                    (!formData.logoVariant || formData.logoVariant === 'shiksha_vibhag') && !formData.logoUrl
-                      ? 'border-emerald-600 bg-white ring-2 ring-emerald-500 shadow-xs'
-                      : 'border-slate-200 bg-white/70 hover:bg-white'
-                  }`}
-                >
-                  <BiharEducationLogo size={52} variant="shiksha_vibhag" className="shrink-0" />
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">शिक्षा विभाग, बिहार सरकार</div>
-                    <div className="text-[11px] text-slate-600">बोधिवृक्ष, पेंसिल एवं खुली पुस्तक प्रतीक (मानक)</div>
-                  </div>
-                </button>
-
-                {/* Choice 2: बिहार शिक्षा परियोजना (Image 5) */}
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, logoVariant: 'bepc', logoUrl: '' })}
-                  className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                    formData.logoVariant === 'bepc' && !formData.logoUrl
-                      ? 'border-indigo-600 bg-white ring-2 ring-indigo-500 shadow-xs'
-                      : 'border-slate-200 bg-white/70 hover:bg-white'
-                  }`}
-                >
-                  <BiharEducationLogo size={52} variant="bepc" className="shrink-0" />
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">बिहार शिक्षा परियोजना परिषद</div>
-                    <div className="text-[11px] text-slate-600">BEPC आधिकारिक नीला वृत्ताकार सील</div>
-                  </div>
-                </button>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  या अन्य कस्टम लोगो इमेज URL (वैकल्पिक):
-                </label>
-                <input
-                  type="url"
-                  value={formData.logoUrl || ''}
-                  onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                  className="w-full px-3 py-1.5 border border-slate-300 bg-white rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                  placeholder="यदि अपनी संस्था का अलग लोगो लगाना चाहें तो यहाँ URL डालें (अन्यथा खाली रहने दें)..."
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-slate-200 flex justify-end">
-            <button
-              id="btn-save-crc-profile"
-              type="submit"
-              disabled={isSaving}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              {isSaving ? 'सहेजा जा रहा है...' : 'प्रोफ़ाइल अपडेट करें (Save)'}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Cluster Schools Management */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
-        <div className="border-b border-slate-200 pb-4 mb-6">
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <School className="w-6 h-6 text-indigo-600" />
-            संकुल के अधीन विद्यालय (Cluster Schools Directory)
-          </h2>
-          <p className="text-sm text-slate-600 mt-1">
-            यहाँ वे सभी प्राथमिक, माध्यमिक व हाई स्कूल सूचीबद्ध हैं जो इस संकुल संसाधन केंद्र के अंतर्गत आते हैं
-          </p>
-        </div>
-
-        {/* Add School Mini Form */}
-        <form onSubmit={handleCreateSchool} className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
-          <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-3">
-            नया विद्यालय जोड़ें :
-          </span>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div className="md:col-span-2">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                कार्यालयीन ईमेल
+              </label>
               <input
-                type="text"
-                required
-                value={newSchool.name}
-                onChange={(e) => setNewSchool({ ...newSchool, name: e.target.value })}
-                placeholder="विद्यालय का नाम (उदा. शा. प्राथमिक शाला...)"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs text-slate-900 bg-white"
+                type="email"
+                value={formData.email || ''}
+                onChange={(e) => handleChange('email', e.target.value)}
+                placeholder="crc.office@gmail.com"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-medium"
               />
             </div>
-            <div>
-              <input
-                type="text"
-                value={newSchool.udiseCode}
-                onChange={(e) => setNewSchool({ ...newSchool, udiseCode: e.target.value })}
-                placeholder="UDISE कोड (उदा. 221004...)"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs text-slate-900 bg-white"
-              />
-            </div>
-            <div>
-              <button
-                type="submit"
-                disabled={isAddingSchool}
-                className="w-full inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-xs cursor-pointer transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                {isAddingSchool ? 'जोड़ा जा रहा है...' : 'विद्यालय जोड़ें'}
-              </button>
-            </div>
-          </div>
-        </form>
-
-        {/* Existing Schools Table */}
-        <div className="overflow-x-auto border border-slate-200 rounded-lg">
-          <table className="w-full text-left text-sm border-collapse">
-            <thead>
-              <tr className="bg-slate-100 text-slate-700 text-xs font-semibold border-b border-slate-200">
-                <th className="py-2.5 px-4 w-12 text-center">क्र.</th>
-                <th className="py-2.5 px-4">विद्यालय का नाम</th>
-                <th className="py-2.5 px-4">यू-डाइस (UDISE) कोड</th>
-                <th className="py-2.5 px-4">श्रेणी</th>
-                <th className="py-2.5 px-4 text-center w-20">कार्रवाई</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {schools.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
-                    कोई विद्यालय दर्ज नहीं है। ऊपर दिए गए फॉर्म से अपने संकुल के विद्यालय जोड़ें।
-                  </td>
-                </tr>
-              ) : (
-                schools.map((s, idx) => (
-                  <tr key={s.id} className="hover:bg-slate-50">
-                    <td className="py-2.5 px-4 text-center text-slate-500 text-xs font-medium">
-                      {idx + 1}
-                    </td>
-                    <td className="py-2.5 px-4 font-semibold text-slate-900">
-                      {s.name}
-                    </td>
-                    <td className="py-2.5 px-4 font-mono text-xs text-slate-600">
-                      {s.udiseCode || '-'}
-                    </td>
-                    <td className="py-2.5 px-4 text-xs text-slate-600">
-                      {s.category || 'विद्यालय'}
-                    </td>
-                    <td className="py-2.5 px-4 text-center">
-                      <button
-                        onClick={() => setSchoolToDelete(s)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                        title="हटाएं"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Designation Master Section */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <Tag className="w-6 h-6 text-indigo-600" />
-              संकुल पदनाम सूची मास्टर (Designation Master List)
-            </h2>
-            <p className="text-sm text-slate-600 mt-1">
-              यहाँ से आप अनावश्यक अथवा पुराने पदनाम हटा सकते हैं एवं नए कस्टम पदनाम जोड़ सकते हैं
-            </p>
-          </div>
-
-          {desigSuccessMsg && (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded-lg font-semibold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              {desigSuccessMsg}
-            </div>
-          )}
-        </div>
-
-        {/* Add New Designation Input */}
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
-          <label className="block text-xs font-bold text-slate-700 mb-2">
-            नया पदनाम जोड़ें (Add Custom Designation)
-          </label>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              id="settings-custom-desig-input"
-              type="text"
-              value={newDesigInput}
-              onChange={(e) => setNewDesigInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddDesig();
-                }
-              }}
-              placeholder="उदा. सहायक ग्रेड-3, प्रयोगशाला शिक्षक, भृत्य..."
-              className="flex-1 px-3.5 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"
-            />
-            <button
-              id="settings-add-desig-btn"
-              type="button"
-              onClick={handleAddDesig}
-              disabled={!newDesigInput.trim()}
-              className="inline-flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50 shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>पदनाम जोड़ें</span>
-            </button>
           </div>
         </div>
 
-        {/* List of Designations with quick delete */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-              सक्रिय पदनाम ({designations.length})
-            </span>
-            <button
-              type="button"
-              onClick={() => setDesignations(DEFAULT_DESIGNATIONS)}
-              className="text-xs text-indigo-600 hover:text-indigo-800 font-medium underline cursor-pointer"
-            >
-              डिफ़ॉल्ट सूची पर रीसेट करें
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-            {designations.map((d, index) => (
-              <div
-                key={d}
-                className="flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <span className="text-xs text-slate-400 font-mono">{index + 1}.</span>
-                  <span className="text-sm font-medium text-slate-800 truncate">{d}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveDesig(d)}
-                  title="हटाएं"
-                  className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer shrink-0 ml-2"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
+        {/* Action Button */}
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl text-sm flex items-center gap-2 cursor-pointer shadow-md transition-all disabled:opacity-50"
+          >
+            <Save className="w-4 h-4" />
+            {isSaving ? 'सुरक्षित हो रहा है...' : 'सभी सेटिंग्स सुरक्षित करें'}
+          </button>
         </div>
-      </div>
-
-      {/* Database Maintenance & Demo Data Cleaner Card */}
-      {onCleanupDemoData && (
-        <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Trash2 className="w-5 h-5 text-red-600" />
-                डेटाबेस रखरखाव एवं डेमो डेटा निष्कासन (Clean Demo Data)
-              </h2>
-              <p className="text-xs text-slate-600 mt-1">
-                यदि डेटाबेस में कोई प्रारंभिक नमूना / डेमो शिक्षक या शालाएं मौजूद हों, तो उन्हें हटाकर केवल आपका वास्तविक (Original) डेटा सुरक्षित रखें
-              </p>
-            </div>
-            {cleanDemoMessage && (
-              <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded-lg font-semibold">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                {cleanDemoMessage}
-              </div>
-            )}
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <h4 className="text-sm font-bold text-amber-900">
-                डेमो / डमी डेटा साफ़ करें
-              </h4>
-              <p className="text-xs text-amber-800 mt-0.5">
-                यह प्रक्रिया केवल प्रारंभिक नमूना शिक्षकों व शालाओं को हटाती है। आपके द्वारा बनाए गए वास्तविक आदेश, असली शिक्षक व शालाएं पूरी तरह सुरक्षित रहेंगी।
-              </p>
-            </div>
-
-            <button
-              id="btn-cleanup-demo-data"
-              type="button"
-              disabled={isCleaningDemo}
-              onClick={async () => {
-                if (window.confirm('क्या आप डेटाबेस से सभी डेमो / नमूना डेटा हटाना चाहते हैं?')) {
-                  setIsCleaningDemo(true);
-                  try {
-                    const result = await onCleanupDemoData();
-                    setCleanDemoMessage(`डेमो डेटा सफलतापूर्वक साफ़ किया गया! (${result.deletedTeachers} डेमो शिक्षक, ${result.deletedSchools} डेमो शालाएं हटाई गईं)`);
-                    setTimeout(() => setCleanDemoMessage(null), 5000);
-                  } catch (err) {
-                    console.error(err);
-                  } finally {
-                    setIsCleaningDemo(false);
-                  }
-                }
-              }}
-              className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-50 shrink-0"
-            >
-              <Trash2 className="w-4 h-4" />
-              {isCleaningDemo ? 'साफ़ किया जा रहा है...' : 'डेमो डेटा हटाएं (Remove Demo Data)'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Delete School Success Toast Banner */}
-      {deleteSchoolMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 text-sm border border-slate-700 animate-in fade-in slide-in-from-bottom-3">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          <span>{deleteSchoolMessage}</span>
-        </div>
-      )}
-
-      {/* Confirmation Modal for Deleting School */}
-      {schoolToDelete && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
-            <div className="p-6 text-center space-y-4">
-              <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
-                <Trash2 className="w-6 h-6" />
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  शाला रिकॉर्ड हटाएं?
-                </h3>
-                <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                  क्या आप संकुल विद्यालय सूची से <strong className="text-slate-900">"{schoolToDelete.name}"</strong> {schoolToDelete.udiseCode ? `(UDISE: ${schoolToDelete.udiseCode})` : ''} को हटाना चाहते हैं?
-                </p>
-              </div>
-
-              <div className="pt-2 flex items-center justify-center gap-3">
-                <button
-                  type="button"
-                  disabled={isDeletingSchool}
-                  onClick={() => setSchoolToDelete(null)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-700 hover:bg-slate-50 font-medium cursor-pointer transition-colors"
-                >
-                  रद्द करें
-                </button>
-                <button
-                  id="btn-confirm-delete-school"
-                  type="button"
-                  disabled={isDeletingSchool}
-                  onClick={handleConfirmDeleteSchool}
-                  className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  {isDeletingSchool ? 'हटाया जा रहा है...' : 'हाँ, शाला हटाएं'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </form>
     </div>
   );
 };

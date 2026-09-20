@@ -1,4 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { 
+  FileText, 
+  BookOpen, 
+  Users, 
+  Settings, 
+  Sparkles, 
+  Plus, 
+  Building2, 
+  HelpCircle,
+  RefreshCw,
+  Layers,
+  Database
+} from 'lucide-react';
 import { 
   Teacher, 
   OfficeOrder, 
@@ -10,160 +23,81 @@ import {
   addTeacherToDb, 
   updateTeacherInDb, 
   deleteTeacherFromDb,
-  getOrdersFromDb,
-  saveOrderToDb,
-  updateOrderInDb,
+  getOrdersFromDb, 
+  saveOrderToDb, 
+  updateOrderInDb, 
   deleteOrderFromDb,
-  getCrcProfileFromDb,
-  saveCrcProfileToDb,
-  getSchoolsFromDb,
-  addSchoolToDb,
+  getCrcProfileFromDb, 
+  saveCrcProfileToDb, 
+  getSchoolsFromDb, 
+  addSchoolToDb, 
   deleteSchoolFromDb,
-  cleanupDemoDataFromDb,
   DEFAULT_CRC_PROFILE
 } from './services/dbService';
-import { TeacherManagement } from './components/TeacherManagement';
 import { OrderGenerator } from './components/OrderGenerator';
 import { OrderHistory } from './components/OrderHistory';
+import { TeacherManagement } from './components/TeacherManagement';
 import { CrcProfileSettings } from './components/CrcProfileSettings';
 import { AiOrderAssistant } from './components/AiOrderAssistant';
 import { BiharEducationLogo } from './components/BiharEducationLogo';
-import { generateNextOrderNumber, getHighestOrderSequence } from './utils/orderNumberUtils';
-import { 
-  FileText, 
-  Users, 
-  History, 
-  Settings, 
-  School, 
-  PlusCircle, 
-  CheckCircle2, 
-  Database,
-  Building,
-  Sparkles,
-  Bot,
-  BookOpen,
-  ClipboardList
-} from 'lucide-react';
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState<'create_order' | 'ai_assistant' | 'teachers' | 'history' | 'settings'>('create_order');
+export function App() {
+  const [activeTab, setActiveTab] = useState<'create_order' | 'history' | 'teachers' | 'settings' | 'ai_assistant'>('create_order');
   
-  // App Data States
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [orders, setOrders] = useState<OfficeOrder[]>([]);
-  const [schools, setSchools] = useState<ClusterSchool[]>([]);
+  // App Data State
   const [profile, setProfile] = useState<CrcProfile>(DEFAULT_CRC_PROFILE);
-
-  const [isLoading, setIsLoading] = useState(true);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [schools, setSchools] = useState<ClusterSchool[]>([]);
+  const [orders, setOrders] = useState<OfficeOrder[]>([]);
+  
+  // Active Editing Order
   const [editingOrder, setEditingOrder] = useState<OfficeOrder | null>(null);
 
-  // Load initial data from Firestore and ensure all demo data is cleared
+  // Loading and Notification States
+  const [isLoading, setIsLoading] = useState(true);
+  const [dbConnected, setDbConnected] = useState(true);
+
+  // Initial Load from Firestore
   useEffect(() => {
-    async function loadAllData() {
-      setIsLoading(true);
-      try {
-        // Automatically cleanup any lingering demo entries in Firestore
-        await cleanupDemoDataFromDb();
-
-        const [loadedTeachers, loadedOrders, loadedSchools, loadedProfile] = await Promise.all([
-          getTeachersFromDb(),
-          getOrdersFromDb(),
-          getSchoolsFromDb(),
-          getCrcProfileFromDb()
-        ]);
-
-        setTeachers(loadedTeachers);
-        setOrders(loadedOrders);
-        setSchools(loadedSchools);
-        setProfile(loadedProfile);
-      } catch (err) {
-        console.error('Error loading Firestore data:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
     loadAllData();
   }, []);
 
-  // Dedicated demo cleanup handler for manual invocation
-  const handleCleanupDemoData = async () => {
-    const result = await cleanupDemoDataFromDb();
-    const [refreshedTeachers, refreshedSchools, refreshedProfile] = await Promise.all([
-      getTeachersFromDb(),
-      getSchoolsFromDb(),
-      getCrcProfileFromDb()
-    ]);
-    setTeachers(refreshedTeachers);
-    setSchools(refreshedSchools);
-    setProfile(refreshedProfile);
-    return result;
-  };
-
-  // Teacher Handlers
-  const handleAddTeacher = async (newTeacher: Omit<Teacher, 'id'>) => {
+  const loadAllData = async () => {
+    setIsLoading(true);
     try {
-      const id = await addTeacherToDb(newTeacher);
-      setTeachers(prev => [{ id, ...newTeacher }, ...prev]);
+      const [p, t, s, o] = await Promise.all([
+        getCrcProfileFromDb(),
+        getTeachersFromDb(),
+        getSchoolsFromDb(),
+        getOrdersFromDb()
+      ]);
+      setProfile(p);
+      setTeachers(t);
+      setSchools(s);
+      setOrders(o);
+      setDbConnected(true);
     } catch (err) {
-      console.error('Error adding teacher:', err);
-      const fallbackId = `teacher-${Date.now()}`;
-      setTeachers(prev => [{ id: fallbackId, ...newTeacher }, ...prev]);
+      console.error('Error loading initial data from Firestore:', err);
+      setDbConnected(false);
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  const handleUpdateTeacher = async (id: string, updated: Partial<Teacher>) => {
-    try {
-      await updateTeacherInDb(id, updated);
-    } catch (err) {
-      console.error('Error updating teacher:', err);
-    }
-    setTeachers(prev => prev.map(t => (t.id === id ? { ...t, ...updated } : t)));
-  };
-
-  const handleDeleteTeacher = async (id: string) => {
-    try {
-      await deleteTeacherFromDb(id);
-    } catch (err) {
-      console.error('Error deleting teacher from DB:', err);
-    }
-    setTeachers(prev => prev.filter(t => t.id !== id));
   };
 
   // Order Handlers
-  const handleSaveOrder = async (orderData: Omit<OfficeOrder, 'id'>): Promise<string> => {
-    if (editingOrder) {
-      try {
-        await updateOrderInDb(editingOrder.id, orderData);
-      } catch (err) {
-        console.error('Error updating order:', err);
-      }
-      setOrders(prev => prev.map(o => (o.id === editingOrder.id ? { ...o, ...orderData } : o)));
-      const id = editingOrder.id;
-      setEditingOrder(null);
-      return id;
+  const handleSaveOrder = async (orderData: Omit<OfficeOrder, 'id'>, existingId?: string) => {
+    if (existingId) {
+      await updateOrderInDb(existingId, orderData);
+      setOrders(prev => prev.map(o => (o.id === existingId ? { ...orderData, id: existingId } : o)));
     } else {
-      try {
-        const id = await saveOrderToDb(orderData);
-        const newOrder: OfficeOrder = { id, ...orderData };
-        setOrders(prev => [newOrder, ...prev]);
-        return id;
-      } catch (err) {
-        console.error('Error saving order:', err);
-        const fallbackId = `order-${Date.now()}`;
-        const newOrder: OfficeOrder = { id: fallbackId, ...orderData };
-        setOrders(prev => [newOrder, ...prev]);
-        return fallbackId;
-      }
+      const newId = await saveOrderToDb(orderData);
+      const newOrder = { ...orderData, id: newId };
+      setOrders(prev => [newOrder, ...prev]);
     }
   };
 
   const handleDeleteOrder = async (id: string) => {
-    try {
-      await deleteOrderFromDb(id);
-    } catch (err) {
-      console.error('Error deleting order from DB:', err);
-    }
+    await deleteOrderFromDb(id);
     setOrders(prev => prev.filter(o => o.id !== id));
   };
 
@@ -181,187 +115,163 @@ export default function App() {
     setActiveTab('create_order');
   };
 
-  const handleApplyDraftToOrder = (draft: Partial<OfficeOrder>) => {
-    const nextOrderNum = generateNextOrderNumber(orders, profile.letterPrefix);
-    const fullOrder: OfficeOrder = {
-      id: `ai-draft-${Date.now()}`,
-      orderNumber: draft.orderNumber || nextOrderNum,
-      orderDate: draft.orderDate || new Date().toISOString().split('T')[0],
-      subject: draft.subject || '',
-      reference: draft.reference || 'कार्यालय विकासखंड शिक्षा अधिकारी / जिला शिक्षा अधिकारी संदर्भित पत्र क्रमांक... दिनांक...',
-      content: draft.content || '',
-      orderType: draft.orderType || 'general',
-      includeDeputedSchool: draft.includeDeputedSchool ?? Boolean(draft.selectedTeachers?.some(t => Boolean(t.deputedSchool))),
-      selectedTeachers: draft.selectedTeachers || [],
-      meetingDate: draft.meetingDate || '',
-      meetingTime: draft.meetingTime || 'प्रातः 11:00 बजे',
-      meetingVenue: draft.meetingVenue || 'संकुल संसाधन केंद्र (CRC) सभागार',
-      signatoryName: profile.defaultSignatory || profile.centerHead,
-      signatoryDesignation: profile.defaultDesignation || profile.headDesignation,
-      officeName: profile.clusterName,
-      officeAddress: profile.officeAddress,
-      copyTo: [],
-      createdAt: new Date().toISOString()
-    };
-
-    setEditingOrder(fullOrder);
-    setActiveTab('create_order');
+  // Teacher Handlers
+  const handleAddTeacher = async (tData: Omit<Teacher, 'id'>) => {
+    const newId = await addTeacherToDb(tData);
+    setTeachers(prev => [...prev, { ...tData, id: newId }]);
   };
 
-  // Direct 1-Click Save to Dispatch Register from AI Assistant
-  const handleDirectSaveFromAi = async (draft: Partial<OfficeOrder>): Promise<string> => {
-    const nextOrderNum = generateNextOrderNumber(orders, profile.letterPrefix);
-    const defaultNum = draft.orderNumber || nextOrderNum;
-    const fullOrder: Omit<OfficeOrder, 'id'> = {
-      orderNumber: defaultNum,
-      orderDate: draft.orderDate || new Date().toISOString().split('T')[0],
-      subject: draft.subject || 'कार्यालयीन आदेश',
-      reference: draft.reference || '',
-      content: draft.content || '',
-      orderType: draft.orderType || 'general',
-      includeDeputedSchool: draft.includeDeputedSchool ?? Boolean(draft.selectedTeachers?.some(t => Boolean(t.deputedSchool))),
-      selectedTeachers: draft.selectedTeachers || [],
-      meetingDate: draft.meetingDate || '',
-      meetingTime: draft.meetingTime || 'प्रातः 11:00 बजे',
-      meetingVenue: draft.meetingVenue || 'संकुल संसाधन केंद्र सभागार',
-      signatoryName: profile.defaultSignatory || profile.centerHead,
-      signatoryDesignation: profile.defaultDesignation || profile.headDesignation,
-      officeName: profile.clusterName,
-      officeAddress: profile.officeAddress,
-      copyTo: [],
-      createdAt: new Date().toISOString()
-    };
-
-    const savedId = await handleSaveOrder(fullOrder);
-    return savedId;
+  const handleUpdateTeacher = async (id: string, tData: Partial<Teacher>) => {
+    await updateTeacherInDb(id, tData);
+    setTeachers(prev => prev.map(t => (t.id === id ? { ...t, ...tData } : t)));
   };
 
-  // Profile & School Handlers
-  const handleSaveProfile = async (newProfile: CrcProfile) => {
-    try {
-      await saveCrcProfileToDb(newProfile);
-    } catch (err) {
-      console.error('Error saving profile:', err);
-    }
-    setProfile(newProfile);
+  const handleDeleteTeacher = async (id: string) => {
+    await deleteTeacherFromDb(id);
+    setTeachers(prev => prev.filter(t => t.id !== id));
   };
 
-  const handleAddSchool = async (school: Omit<ClusterSchool, 'id'>) => {
-    try {
-      const id = await addSchoolToDb(school);
-      setSchools(prev => [...prev, { id, ...school }]);
-    } catch (err) {
-      console.error('Error adding school:', err);
-      const fallbackId = `school-${Date.now()}`;
-      setSchools(prev => [...prev, { id: fallbackId, ...school }]);
-    }
+  // School Handlers
+  const handleAddSchool = async (sData: Omit<ClusterSchool, 'id'>) => {
+    const newId = await addSchoolToDb(sData);
+    setSchools(prev => [...prev, { ...sData, id: newId }]);
   };
 
   const handleDeleteSchool = async (id: string) => {
-    try {
-      await deleteSchoolFromDb(id);
-    } catch (err) {
-      console.error('Error deleting school from DB:', err);
-    }
+    await deleteSchoolFromDb(id);
     setSchools(prev => prev.filter(s => s.id !== id));
   };
 
+  // Profile Settings
+  const handleSaveProfile = async (updatedProfile: CrcProfile) => {
+    await saveCrcProfileToDb(updatedProfile);
+    setProfile(updatedProfile);
+  };
+
+  // AI Draft to Order
+  const handleAiDraftGenerated = (draft: Partial<OfficeOrder>) => {
+    setEditingOrder(draft as OfficeOrder);
+    setActiveTab('create_order');
+  };
+
   return (
-    <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-['Mukta','Noto_Sans_Devanagari',sans-serif]">
-      {/* Top Application Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs print:hidden">
+    <div className="min-h-screen bg-slate-100 flex flex-col font-['Mukta','Noto_Sans_Devanagari',sans-serif]">
+      {/* Top Main Navigation Bar */}
+      <header className="bg-slate-900 text-white sticky top-0 z-40 shadow-md print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Logo & Title */}
+            {/* Logo & Portal Identity */}
             <div className="flex items-center gap-3">
-              <BiharEducationLogo size={42} customUrl={profile.logoUrl} variant={profile.logoVariant || 'shiksha_vibhag'} className="shrink-0" />
+              <BiharEducationLogo size={42} customUrl={profile.logoUrl} />
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
-                    शिक्षा विभाग, बिहार
-                  </h1>
-                  <span className="hidden sm:inline-block text-[10px] bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded-full border border-amber-300">
-                    CRC पोर्टल
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 hidden sm:block">
-                  {profile.clusterName || 'संकुल संसाधन केंद्र'} • कार्यालयीन आदेश एवं पत्र जनरेटर
-                </p>
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
+                  शिक्षा विभाग • बिहार सरकार
+                </span>
+                <h1 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none">
+                  {profile.clusterName || 'संकुल संसाधन केंद्र (CRC)'}
+                </h1>
               </div>
             </div>
 
-            {/* Firestore Status Badge & Cluster Info & Quick Link to जावक पंजी */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            {/* Navigation Tabs */}
+            <nav className="flex items-center gap-1 sm:gap-2">
               <button
-                onClick={() => setActiveTab('history')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
-                  activeTab === 'history'
-                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
-                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border-indigo-200'
+                type="button"
+                onClick={() => {
+                  setEditingOrder(null);
+                  setActiveTab('create_order');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'create_order'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
                 }`}
-                title="कार्यालयीन जावक पंजी खोलें"
               >
-                <ClipboardList className="w-4 h-4" />
-                <span>जावक पंजी</span>
-                <span className="bg-indigo-200/80 text-indigo-950 text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ml-0.5">
-                  {orders.length}
-                </span>
+                <Plus className="w-4 h-4" />
+                <span className="hidden md:inline">आदेश जनरेटर</span>
+                <span className="md:hidden">नया आदेश</span>
               </button>
 
-              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-full font-medium">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <Database className="w-3.5 h-3.5" />
-                <span>सुरक्षित (Cloud Firestore)</span>
-              </div>
-            </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('history')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'history'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span className="hidden sm:inline">जावक पंजी</span>
+                {orders.length > 0 && (
+                  <span className="bg-amber-400 text-slate-950 font-black text-[10px] px-1.5 py-0.2 rounded-full">
+                    {orders.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('teachers')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'teachers'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span className="hidden sm:inline">शिक्षक / शालाएं</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('ai_assistant')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'ai_assistant'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'text-purple-300 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span className="hidden md:inline">AI प्रारूपक</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('settings')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'settings'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+                title="CRC लेटरहेड एवं सेटिंग्स"
+              >
+                <Settings className="w-4 h-4" />
+                <span className="hidden lg:inline">सेटिंग्स</span>
+              </button>
+            </nav>
           </div>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-24 sm:pb-28">
+      {/* Main Content View Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-24 space-y-4">
-            <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm font-semibold text-slate-600">
-              Firestore डेटाबेस से संकुल रिकॉर्ड व जावक पंजी लोड की जा रही है...
-            </p>
+          <div className="flex flex-col items-center justify-center py-24 text-slate-500 space-y-3">
+            <RefreshCw className="w-8 h-8 animate-spin text-indigo-600" />
+            <p className="text-sm font-semibold">क्लाउड डेटाबेस (Firestore) से रिकॉर्ड लोड हो रहे हैं...</p>
           </div>
         ) : (
           <>
             {activeTab === 'create_order' && (
               <OrderGenerator
+                profile={profile}
                 teachers={teachers}
                 schools={schools}
-                profile={profile}
-                orders={orders}
+                savedOrders={orders}
+                initialOrder={editingOrder}
                 onSaveOrder={handleSaveOrder}
-                editingOrder={editingOrder}
-                onCancelEdit={() => setEditingOrder(null)}
-                onOpenAiChat={() => setActiveTab('ai_assistant')}
                 onNavigateToHistory={() => setActiveTab('history')}
-              />
-            )}
-
-            {activeTab === 'ai_assistant' && (
-              <AiOrderAssistant
-                teachers={teachers}
-                profile={profile}
-                schools={schools}
-                orders={orders}
-                onApplyDraftToOrder={handleApplyDraftToOrder}
-                onDirectSaveToHistory={handleDirectSaveFromAi}
-                onNavigateToHistory={() => setActiveTab('history')}
-              />
-            )}
-
-            {activeTab === 'teachers' && (
-              <TeacherManagement
-                teachers={teachers}
-                schools={schools}
-                onAddTeacher={handleAddTeacher}
-                onUpdateTeacher={handleUpdateTeacher}
-                onDeleteTeacher={handleDeleteTeacher}
               />
             )}
 
@@ -372,19 +282,40 @@ export default function App() {
                 onEditOrder={handleEditOrder}
                 onDeleteOrder={handleDeleteOrder}
                 onUpdateOrder={handleDirectUpdateOrder}
-                onNavigateToCreate={() => setActiveTab('create_order')}
+                onRefresh={loadAllData}
+                isRefreshing={isLoading}
+                onNavigateToCreate={() => {
+                  setEditingOrder(null);
+                  setActiveTab('create_order');
+                }}
                 onNavigateToAi={() => setActiveTab('ai_assistant')}
+              />
+            )}
+
+            {activeTab === 'teachers' && (
+              <TeacherManagement
+                teachers={teachers}
+                schools={schools}
+                onAddTeacher={handleAddTeacher}
+                onUpdateTeacher={handleUpdateTeacher}
+                onDeleteTeacher={handleDeleteTeacher}
+                onAddSchool={handleAddSchool}
+                onDeleteSchool={handleDeleteSchool}
+              />
+            )}
+
+            {activeTab === 'ai_assistant' && (
+              <AiOrderAssistant
+                profile={profile}
+                teachers={teachers}
+                onDraftGenerated={handleAiDraftGenerated}
               />
             )}
 
             {activeTab === 'settings' && (
               <CrcProfileSettings
                 profile={profile}
-                schools={schools}
                 onSaveProfile={handleSaveProfile}
-                onAddSchool={handleAddSchool}
-                onDeleteSchool={handleDeleteSchool}
-                onCleanupDemoData={handleCleanupDemoData}
               />
             )}
           </>
@@ -392,139 +323,17 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-3 px-6 text-center text-xs text-slate-500 mb-16 sm:mb-16 print:hidden">
-        संकुल संसाधन केंद्र (Cluster Resource Centre) कार्यालयीन प्रबंधन प्रणाली • डेटाबेस: Cloud Firestore • AI संचालित शुद्ध शासकीय आलेखन
-      </footer>
-
-      {/* Fixed Bottom Navigation Bar */}
-      <nav
-        id="bottom-navigation-bar"
-        aria-label="मुख्य नेविगेशन"
-        className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg px-2 sm:px-4 py-1.5 print:hidden"
-      >
-        <div className="max-w-2xl mx-auto flex items-center justify-around gap-1">
-          {/* 1. Create Order Tab */}
-          <button
-            id="bottom-nav-create-order"
-            onClick={() => setActiveTab('create_order')}
-            className={`flex-1 py-1 px-1 sm:px-2 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer relative ${
-              activeTab === 'create_order'
-                ? 'text-indigo-600 font-bold'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <div className={`p-1.5 rounded-lg transition-colors relative ${
-              activeTab === 'create_order' ? 'bg-indigo-50 text-indigo-600' : ''
-            }`}>
-              <FileText className="w-5 h-5" />
-              {editingOrder && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-white"></span>
-              )}
-            </div>
-            <span className="text-[11px] sm:text-xs mt-0.5 tracking-tight text-center truncate max-w-full">
-              नया आदेश
-            </span>
-          </button>
-
-          {/* 2. AI Order Assistant Tab */}
-          <button
-            id="bottom-nav-ai-assistant"
-            onClick={() => setActiveTab('ai_assistant')}
-            className={`flex-1 py-1 px-1 sm:px-2 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer relative ${
-              activeTab === 'ai_assistant'
-                ? 'text-indigo-600 font-bold'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <div className={`p-1.5 rounded-lg transition-colors relative ${
-              activeTab === 'ai_assistant' ? 'bg-indigo-50 text-indigo-600' : ''
-            }`}>
-              <Sparkles className="w-5 h-5 text-amber-500" />
-              <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-              </span>
-            </div>
-            <span className="text-[11px] sm:text-xs mt-0.5 tracking-tight text-center truncate max-w-full font-semibold">
-              ✨ AI सहायक
-            </span>
-          </button>
-
-          {/* 3. History / जावक पंजी Tab (PROMINENT) */}
-          <button
-            id="bottom-nav-history"
-            onClick={() => setActiveTab('history')}
-            className={`flex-1 py-1 px-1 sm:px-2 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer relative ${
-              activeTab === 'history'
-                ? 'text-indigo-600 font-bold'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <div className={`p-1.5 rounded-lg transition-colors relative ${
-              activeTab === 'history' ? 'bg-indigo-50 text-indigo-600' : ''
-            }`}>
-              <ClipboardList className="w-5 h-5" />
-              {orders.length > 0 && (
-                <span className={`absolute -top-1 -right-2 text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
-                  activeTab === 'history' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'
-                }`}>
-                  {orders.length}
-                </span>
-              )}
-            </div>
-            <span className="text-[11px] sm:text-xs mt-0.5 tracking-tight text-center truncate max-w-full font-semibold">
-              📖 जावक पंजी
-            </span>
-          </button>
-
-          {/* 4. Teachers Tab */}
-          <button
-            id="bottom-nav-teachers"
-            onClick={() => setActiveTab('teachers')}
-            className={`flex-1 py-1 px-1 sm:px-2 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer relative ${
-              activeTab === 'teachers'
-                ? 'text-indigo-600 font-bold'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <div className={`p-1.5 rounded-lg transition-colors relative ${
-              activeTab === 'teachers' ? 'bg-indigo-50 text-indigo-600' : ''
-            }`}>
-              <Users className="w-5 h-5" />
-              {teachers.length > 0 && (
-                <span className={`absolute -top-1 -right-2 text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
-                  activeTab === 'teachers' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'
-                }`}>
-                  {teachers.length}
-                </span>
-              )}
-            </div>
-            <span className="text-[11px] sm:text-xs mt-0.5 tracking-tight text-center truncate max-w-full">
-              शिक्षक सूची
-            </span>
-          </button>
-
-          {/* 5. Settings Tab */}
-          <button
-            id="bottom-nav-settings"
-            onClick={() => setActiveTab('settings')}
-            className={`flex-1 py-1 px-1 sm:px-2 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer ${
-              activeTab === 'settings'
-                ? 'text-indigo-600 font-bold'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <div className={`p-1.5 rounded-lg transition-colors ${
-              activeTab === 'settings' ? 'bg-indigo-50 text-indigo-600' : ''
-            }`}>
-              <Settings className="w-5 h-5" />
-            </div>
-            <span className="text-[11px] sm:text-xs mt-0.5 tracking-tight text-center truncate max-w-full">
-              संकुल प्रोफाइल
-            </span>
-          </button>
+      <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 print:hidden">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p>© 2026 संकुल संसाधन केंद्र (CRC) पोर्टल • शिक्षा विभाग, बिहार</p>
+          <p className="flex items-center gap-1.5 font-medium text-slate-600">
+            <Database className="w-3.5 h-3.5 text-emerald-600" />
+            क्लाउड डेटाबेस (Firestore) लाइव सिंक सक्रिय
+          </p>
         </div>
-      </nav>
+      </footer>
     </div>
   );
 }
+
+export default App;

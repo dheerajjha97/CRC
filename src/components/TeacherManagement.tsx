@@ -1,19 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Teacher, ClusterSchool } from '../types';
 import { 
-  UserPlus, 
-  Search, 
-  School, 
-  Edit, 
+  Users, 
+  Plus, 
   Trash2, 
-  CheckCircle2, 
-  X, 
-  Filter,
-  GraduationCap,
+  Edit2, 
+  School, 
+  Search, 
+  UserPlus, 
+  Check, 
   Sparkles,
-  Plus,
-  Tag,
-  Settings2
+  Phone,
+  Mail,
+  BookOpen
 } from 'lucide-react';
 
 interface TeacherManagementProps {
@@ -22,678 +21,516 @@ interface TeacherManagementProps {
   onAddTeacher: (teacher: Omit<Teacher, 'id'>) => Promise<void>;
   onUpdateTeacher: (id: string, teacher: Partial<Teacher>) => Promise<void>;
   onDeleteTeacher: (id: string) => Promise<void>;
+  onAddSchool: (school: Omit<ClusterSchool, 'id'>) => Promise<void>;
+  onDeleteSchool: (id: string) => Promise<void>;
 }
-
-// Initial clean, standard designations
-export const DEFAULT_DESIGNATIONS = [
-  'सहायक शिक्षक (LB)',
-  'शिक्षक (LB)',
-  'व्याख्याता (LB)',
-  'प्रधान पाठक (प्रा.शा.)',
-  'प्रधान पाठक (मा.शा.)',
-  'व्याख्याता',
-  'सहायक शिक्षक',
-  'शिक्षक',
-  'अतिथि शिक्षक'
-];
 
 export const TeacherManagement: React.FC<TeacherManagementProps> = ({
   teachers,
   schools,
   onAddTeacher,
   onUpdateTeacher,
-  onDeleteTeacher
+  onDeleteTeacher,
+  onAddSchool,
+  onDeleteSchool
 }) => {
+  const [activeSubTab, setActiveSubTab] = useState<'teachers' | 'schools'>('teachers');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSchoolFilter, setSelectedSchoolFilter] = useState('');
-  const [selectedDesignationFilter, setSelectedDesignationFilter] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDesignationManagerOpen, setIsDesignationManagerOpen] = useState(false);
-  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
-  const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string | null>(null);
+  const [filterSchool, setFilterSchool] = useState('');
 
-  // Dynamic & Custom Designations List (persisted in localStorage)
-  const [designations, setDesignations] = useState<string[]>(() => {
+  // Teacher Form State
+  const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [designation, setDesignation] = useState('सहायक शिक्षक');
+  const [schoolName, setSchoolName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [subject, setSubject] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // School Form State
+  const [newSchoolName, setNewSchoolName] = useState('');
+  const [newUdiseCode, setNewUdiseCode] = useState('');
+  const [newCategory, setNewCategory] = useState('प्राथमिक विद्यालय (कक्षा 1-5)');
+
+  // Quick designations
+  const DESIGNATIONS = [
+    'सहायक शिक्षक',
+    'शिक्षक (प्रशिक्षित स्नातक)',
+    'प्रधानाध्यापक / प्रधान शिक्षक',
+    'प्रभारी प्रधानाध्यापक',
+    'व्याख्याता / उच्च माध्यमिक शिक्षक',
+    'शारीरिक शिक्षक (PET)',
+    'विशिष्ट शिक्षक (सक्षमता उत्तीर्ण)',
+    'अतिथि शिक्षक'
+  ];
+
+  const handleSaveTeacher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    setIsSubmitting(true);
     try {
-      const saved = localStorage.getItem('crc_designations_list');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      const selectedSchool = schoolName || (schools.length > 0 ? schools[0].name : 'संकुल प्राथमिक विद्यालय');
+      if (editingTeacherId) {
+        await onUpdateTeacher(editingTeacherId, {
+          name: name.trim(),
+          designation,
+          schoolName: selectedSchool,
+          phone: phone.trim(),
+          email: email.trim(),
+          subject: subject.trim()
+        });
+        setEditingTeacherId(null);
+      } else {
+        await onAddTeacher({
+          name: name.trim(),
+          designation,
+          schoolName: selectedSchool,
+          phone: phone.trim(),
+          email: email.trim(),
+          subject: subject.trim()
+        });
       }
-    } catch {
-      // ignore
+      // Reset form
+      setName('');
+      setPhone('');
+      setEmail('');
+      setSubject('');
+    } finally {
+      setIsSubmitting(false);
     }
-    return DEFAULT_DESIGNATIONS;
-  });
-
-  const [newCustomDesignation, setNewCustomDesignation] = useState('');
-
-  // Save designations to localStorage whenever updated
-  useEffect(() => {
-    try {
-      localStorage.setItem('crc_designations_list', JSON.stringify(designations));
-    } catch {
-      // ignore
-    }
-  }, [designations]);
-
-  // Merge any existing teacher designations into the available list
-  useEffect(() => {
-    if (teachers.length > 0) {
-      const teacherDesigs = teachers.map(t => t.designation.trim()).filter(Boolean);
-      const unique = Array.from(new Set([...designations, ...teacherDesigs]));
-      if (unique.length !== designations.length) {
-        setDesignations(unique);
-      }
-    }
-  }, [teachers]);
-
-  const handleAddCustomDesignation = (desigToAdd?: string) => {
-    const val = (desigToAdd || newCustomDesignation).trim();
-    if (!val) return;
-    if (!designations.includes(val)) {
-      setDesignations(prev => [...prev, val]);
-    }
-    setNewCustomDesignation('');
   };
 
-  const handleRemoveDesignation = (desigToRemove: string) => {
-    setDesignations(prev => prev.filter(d => d !== desigToRemove));
-    if (formData.designation === desigToRemove) {
-      setFormData(prev => ({ ...prev, designation: '' }));
+  const handleEditClick = (t: Teacher) => {
+    setEditingTeacherId(t.id);
+    setName(t.name);
+    setDesignation(t.designation);
+    setSchoolName(t.schoolName);
+    setPhone(t.phone || '');
+    setEmail(t.email || '');
+    setSubject(t.subject || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTeacherId(null);
+    setName('');
+    setPhone('');
+    setEmail('');
+    setSubject('');
+  };
+
+  const handleSaveSchool = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSchoolName.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      await onAddSchool({
+        name: newSchoolName.trim(),
+        udiseCode: newUdiseCode.trim(),
+        category: newCategory
+      });
+      setNewSchoolName('');
+      setNewUdiseCode('');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Form State - strictly Teacher Name, Designation, and Posted School
-  const [formData, setFormData] = useState<{
-    name: string;
-    designation: string;
-    schoolName: string;
-  }>({
-    name: '',
-    designation: designations[0] || 'सहायक शिक्षक (LB)',
-    schoolName: ''
-  });
-  const [isSaving, setIsSaving] = useState(false);
-
+  // Filter teachers
   const filteredTeachers = teachers.filter(t => {
     const matchesSearch = 
       t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.schoolName.toLowerCase().includes(searchTerm.toLowerCase());
+      t.schoolName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (t.subject && t.subject.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesSchool = !selectedSchoolFilter || t.schoolName === selectedSchoolFilter;
-    const matchesDesignation = !selectedDesignationFilter || t.designation === selectedDesignationFilter;
-
-    return matchesSearch && matchesSchool && matchesDesignation;
+    const matchesSchool = filterSchool ? t.schoolName === filterSchool : true;
+    return matchesSearch && matchesSchool;
   });
 
-  const handleOpenAddModal = () => {
-    setEditingTeacher(null);
-    setFormData({
-      name: '',
-      designation: designations[0] || 'सहायक शिक्षक (LB)',
-      schoolName: schools.length > 0 ? schools[0].name : ''
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEditModal = (teacher: Teacher) => {
-    setEditingTeacher(teacher);
-    setFormData({
-      name: teacher.name,
-      designation: teacher.designation,
-      schoolName: teacher.schoolName
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim() || !formData.designation.trim() || !formData.schoolName.trim()) {
-      return;
-    }
-
-    // Also ensure this designation is in the custom designations list
-    if (!designations.includes(formData.designation.trim())) {
-      handleAddCustomDesignation(formData.designation.trim());
-    }
-
-    setIsSaving(true);
-    try {
-      if (editingTeacher) {
-        await onUpdateTeacher(editingTeacher.id, {
-          name: formData.name.trim(),
-          designation: formData.designation.trim(),
-          schoolName: formData.schoolName.trim()
-        });
-      } else {
-        await onAddTeacher({
-          name: formData.name.trim(),
-          designation: formData.designation.trim(),
-          schoolName: formData.schoolName.trim()
-        });
-      }
-      setIsModalOpen(false);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!teacherToDelete) return;
-    setIsDeleting(true);
-    try {
-      const deletedName = teacherToDelete.name;
-      await onDeleteTeacher(teacherToDelete.id);
-      setTeacherToDelete(null);
-      setDeleteSuccessMessage(`शिक्षक "${deletedName}" को संकुल रिकॉर्ड से हटा दिया गया है।`);
-      setTimeout(() => setDeleteSuccessMessage(null), 3500);
-    } catch (err) {
-      console.error('Error deleting teacher:', err);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   return (
-    <div id="teacher-management-dashboard" className="space-y-6">
-      {/* Top Header & Action Banner */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6">
+      {/* Header & Sub-navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <GraduationCap className="w-6 h-6 text-indigo-600" />
-            संकुल शिक्षक प्रोफाइल प्रबंधन
+          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <Users className="w-6 h-6 text-indigo-600" />
+            संकुल शिक्षक एवं विद्यालय प्रबंधन
           </h2>
-          <p className="text-sm text-slate-600 mt-1">
-            संकुल अंतर्गत पदस्थ शिक्षकों का विवरण: शिक्षक का नाम, पदनाम एवं पदस्थ शाला
+          <p className="text-xs text-slate-500 mt-1">
+            संकुल अंतर्गत पदस्थ समस्त शिक्षकों एवं संबद्ध शालाओं की मास्टर डायरेक्टरी
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex bg-slate-100 p-1 rounded-xl self-start sm:self-auto">
           <button
-            id="btn-open-designation-manager"
             type="button"
-            onClick={() => setIsDesignationManagerOpen(true)}
-            className="inline-flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 transition-colors cursor-pointer shrink-0"
+            onClick={() => setActiveSubTab('teachers')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeSubTab === 'teachers'
+                ? 'bg-white text-indigo-700 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
           >
-            <Tag className="w-4 h-4 text-indigo-600" />
-            <span>पदनाम सूची ({designations.length})</span>
+            शिक्षक सूची ({teachers.length})
           </button>
-
           <button
-            id="btn-add-new-teacher"
-            onClick={handleOpenAddModal}
-            className="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer shrink-0"
+            type="button"
+            onClick={() => setActiveSubTab('schools')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeSubTab === 'schools'
+                ? 'bg-white text-indigo-700 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
           >
-            <UserPlus className="w-4 h-4" />
-            <span>नया शिक्षक जोड़ें</span>
+            संबद्ध विद्यालय ({schools.length})
           </button>
         </div>
       </div>
 
-      {/* Filters & Search Row */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-4 grid grid-cols-1 md:grid-cols-12 gap-3">
-        <div className="relative md:col-span-6">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            id="input-search-teachers"
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="शिक्षक का नाम, पदनाम या पदस्थ शाला से खोजें..."
-            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
+      {/* SUB TAB: TEACHERS */}
+      {activeSubTab === 'teachers' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Add / Edit Form */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs lg:col-span-1 h-fit">
+            <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+              {editingTeacherId ? (
+                <>
+                  <Edit2 className="w-4 h-4 text-amber-600" />
+                  शिक्षक विवरण संशोधित करें
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4 text-emerald-600" />
+                  नया शिक्षक जोड़ें
+                </>
+              )}
+            </h3>
 
-        <div className="relative md:col-span-3">
-          <Filter className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <select
-            id="select-filter-school"
-            value={selectedSchoolFilter}
-            onChange={(e) => setSelectedSchoolFilter(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white truncate"
-          >
-            <option value="">सभी शालाएं ({schools.length} शालाएं)</option>
-            {schools.map(s => (
-              <option key={s.id || s.name} value={s.name}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="relative md:col-span-3">
-          <Tag className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <select
-            id="select-filter-designation"
-            value={selectedDesignationFilter}
-            onChange={(e) => setSelectedDesignationFilter(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white truncate"
-          >
-            <option value="">सभी पदनाम ({designations.length} पदनाम)</option>
-            {designations.map(d => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Teacher Table List - Strictly Name, Designation, School */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-            कुल शिक्षक रिकॉर्ड : {filteredTeachers.length}
-          </span>
-          <span className="text-xs text-slate-500">
-            Firestore डेटाबेस से स्वचालित रूप से सिंक
-          </span>
-        </div>
-
-        {filteredTeachers.length === 0 ? (
-          <div className="text-center py-12 px-4 space-y-3">
-            <GraduationCap className="w-12 h-12 text-indigo-300 mx-auto" />
-            <div>
-              <p className="text-base font-semibold text-slate-800">कोई शिक्षक रिकॉर्ड मौजूद नहीं है</p>
-              <p className="text-xs text-slate-500 mt-1">सभी डेमो रिकॉर्ड हटा दिए गए हैं। आप संकुल के वास्तविक शिक्षकों का विवरण दर्ज कर सकते हैं।</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleOpenAddModal}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>नया शिक्षक जोड़ें</span>
-            </button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr className="bg-slate-100 text-slate-700 border-b border-slate-200 text-xs font-semibold">
-                  <th className="py-3.5 px-4 w-14 text-center">क्र.</th>
-                  <th className="py-3.5 px-4">शिक्षक का नाम (Teacher Name)</th>
-                  <th className="py-3.5 px-4">पदनाम (Designation)</th>
-                  <th className="py-3.5 px-4">पदस्थ शाला (Posted School)</th>
-                  <th className="py-3.5 px-4 text-center w-28">कार्रवाई</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredTeachers.map((t, idx) => (
-                  <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 text-center font-medium text-slate-500 text-xs">
-                      {idx + 1}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-slate-900 text-[15px]">{t.name}</div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                        {t.designation}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2 text-slate-800">
-                        <School className="w-4 h-4 text-slate-400 shrink-0" />
-                        <span className="font-medium text-sm">{t.schoolName}</span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          id={`btn-edit-teacher-${t.id}`}
-                          onClick={() => handleOpenEditModal(t)}
-                          title="संशोधित करें"
-                          className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          id={`btn-delete-teacher-${t.id}`}
-                          onClick={() => setTeacherToDelete(t)}
-                          title="हटाएं"
-                          className="p-1.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Delete Success Toast Banner */}
-      {deleteSuccessMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 text-sm border border-slate-700 animate-in fade-in slide-in-from-bottom-3">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          <span>{deleteSuccessMessage}</span>
-        </div>
-      )}
-
-      {/* Confirmation Modal for Deleting Teacher */}
-      {teacherToDelete && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
-            <div className="p-6 text-center space-y-4">
-              <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
-                <Trash2 className="w-6 h-6" />
-              </div>
-              
+            <form onSubmit={handleSaveTeacher} className="space-y-3.5">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  शिक्षक प्रोफाइल हटाएं?
-                </h3>
-                <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                  क्या आप संकुल रिकॉर्ड से शिक्षक <strong className="text-slate-900">"{teacherToDelete.name}"</strong> ({teacherToDelete.designation}, {teacherToDelete.schoolName}) को हटाना चाहते हैं?
-                </p>
-              </div>
-
-              <div className="pt-2 flex items-center justify-center gap-3">
-                <button
-                  type="button"
-                  disabled={isDeleting}
-                  onClick={() => setTeacherToDelete(null)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-700 hover:bg-slate-50 font-medium cursor-pointer transition-colors"
-                >
-                  रद्द करें
-                </button>
-                <button
-                  id="btn-confirm-delete-teacher"
-                  type="button"
-                  disabled={isDeleting}
-                  onClick={handleConfirmDelete}
-                  className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  {isDeleting ? 'हटाया जा रहा है...' : 'हाँ, हटाएं'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Dialog for Add / Edit - STRICTLY 3 FIELDS: Name, Designation, Posted School */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-indigo-600" />
-                {editingTeacher ? 'शिक्षक प्रोफाइल संशोधित करें' : 'नया शिक्षक विवरण दर्ज करें'}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* 1. Teacher Name */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  शिक्षक का नाम (Teacher Name) <span className="text-red-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  शिक्षक / शिक्षिका का पूरा नाम *
                 </label>
                 <input
-                  id="modal-teacher-name"
                   type="text"
                   required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="उदा. श्री सुनील कुमार शर्मा"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="उदा. श्री सुनील कुमार"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
 
-              {/* 2. Designation with Custom Addition & Chips */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    पदनाम (Designation) <span className="text-red-500">*</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsDesignationManagerOpen(true)}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center gap-1 cursor-pointer"
-                  >
-                    <Settings2 className="w-3.5 h-3.5" />
-                    <span>पदनाम सूची प्रबंधित करें</span>
-                  </button>
-                </div>
-
-                <div className="space-y-2.5">
-                  {/* Direct Input with Datalist for autocomplete */}
-                  <div className="relative">
-                    <input
-                      id="modal-teacher-designation-input"
-                      type="text"
-                      required
-                      list="designation-datalist"
-                      value={formData.designation}
-                      onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                      placeholder="पदनाम लिखें या नीचे से चुनें (उदा. सहायक शिक्षक (LB))..."
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"
-                    />
-                    <datalist id="designation-datalist">
-                      {designations.map(d => (
-                        <option key={d} value={d} />
-                      ))}
-                    </datalist>
-                  </div>
-
-                  {/* Quick Select Chips */}
-                  <div>
-                    <span className="text-[11px] text-slate-500 block mb-1.5 font-medium">
-                      त्वरित चयन हेतु पदनाम सूची (क्लिक करें):
-                    </span>
-                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1.5 bg-slate-50 rounded-lg border border-slate-200">
-                      {designations.map(d => {
-                        const isSelected = formData.designation === d;
-                        return (
-                          <button
-                            key={d}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, designation: d })}
-                            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                              isSelected
-                                ? 'bg-indigo-600 text-white shadow-xs'
-                                : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
-                            }`}
-                          >
-                            {d}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  पदनाम (Designation) *
+                </label>
+                <select
+                  value={designation}
+                  onChange={(e) => setDesignation(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+                >
+                  {DESIGNATIONS.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
               </div>
 
-              {/* 3. Posted School */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  पदस्थ शाला / विद्यालय (Posted School) <span className="text-red-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  पदस्थ विद्यालय (School) *
                 </label>
-                <div className="space-y-2">
-                  <select
-                    id="modal-teacher-school-select"
-                    value={formData.schoolName}
-                    onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 bg-white"
-                  >
-                    <option value="">-- संकुल अंतर्गत विद्यालय चुनें --</option>
-                    {schools.map(s => (
-                      <option key={s.id || s.name} value={s.name}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
+                <select
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+                >
+                  {schools.length === 0 && (
+                    <option value="संकुल प्राथमिक शाला">संकुल प्राथमिक शाला</option>
+                  )}
+                  {schools.map((s) => (
+                    <option key={s.id} value={s.name}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    अध्यापन विषय (ऐच्छिक)
+                  </label>
                   <input
-                    id="modal-teacher-school-custom"
                     type="text"
-                    value={formData.schoolName}
-                    onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
-                    placeholder="अथवा विद्यालय का नाम सीधे टाइप करें..."
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-2 focus:ring-indigo-500"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="उदा. गणित / विज्ञान"
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    मोबाइल नंबर
+                  </label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="98765XXXXX"
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs"
                   />
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  ईमेल पता (ऐच्छिक)
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="teacher@example.com"
+                  className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
                 <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-700 hover:bg-slate-50 font-medium cursor-pointer"
-                >
-                  रद्द करें
-                </button>
-                <button
-                  id="modal-submit-teacher-btn"
                   type="submit"
-                  disabled={isSaving}
-                  className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  {isSaving ? 'सहेजा जा रहा है...' : 'सुरक्षित करें (Save)'}
+                  {editingTeacherId ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      अपडेट करें
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3.5 h-3.5" />
+                      शिक्षक सुरक्षित करें
+                    </>
+                  )}
                 </button>
+
+                {editingTeacherId && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 px-3 rounded-xl text-xs cursor-pointer"
+                  >
+                    रद्द करें
+                  </button>
+                )}
               </div>
             </form>
+          </div>
+
+          {/* Teacher Directory List */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs lg:col-span-2 space-y-4">
+            {/* Filter Bar */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="शिक्षक नाम, विद्यालय या विषय से खोजें..."
+                  className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <select
+                value={filterSchool}
+                onChange={(e) => setFilterSchool(e.target.value)}
+                className="w-full sm:w-48 px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-700"
+              >
+                <option value="">सभी विद्यालय ({teachers.length})</option>
+                {schools.map(s => (
+                  <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* List */}
+            {filteredTeachers.length === 0 ? (
+              <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
+                कोई शिक्षक रिकॉर्ड नहीं मिला।
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto pr-1">
+                {filteredTeachers.map((t) => (
+                  <div key={t.id} className="py-3 flex items-center justify-between gap-3 hover:bg-slate-50/80 px-2 rounded-xl transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 text-sm">{t.name}</span>
+                        <span className="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">
+                          {t.designation}
+                        </span>
+                        {t.subject && (
+                          <span className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-semibold flex items-center gap-1">
+                            <BookOpen className="w-2.5 h-2.5" />
+                            {t.subject}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-slate-500 flex flex-wrap items-center gap-3 mt-1">
+                        <span className="flex items-center gap-1 text-slate-600 font-medium">
+                          <School className="w-3 h-3 text-slate-400" />
+                          {t.schoolName}
+                        </span>
+                        {t.phone && (
+                          <span className="flex items-center gap-1 text-slate-500">
+                            <Phone className="w-3 h-3 text-slate-400" />
+                            {t.phone}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(t)}
+                        className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                        title="संशोधित करें"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteTeacher(t.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                        title="हटाएं"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Designation Manager Modal Dialog */}
-      {isDesignationManagerOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95">
-            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
-                  <Tag className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    पदनाम सूची प्रबंधन (Designations)
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    पुराने पदनाम हटाएं अथवा नए कस्टम पदनाम जोड़ें
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsDesignationManagerOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* SUB TAB: SCHOOLS */}
+      {activeSubTab === 'schools' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Add School Form */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs lg:col-span-1 h-fit">
+            <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <School className="w-4 h-4 text-indigo-600" />
+              नया संबद्ध विद्यालय जोड़ें
+            </h3>
 
-            <div className="p-6 space-y-5">
-              {/* Add New Custom Designation Input */}
+            <form onSubmit={handleSaveSchool} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  नया कस्टम पदनाम जोड़ें (Add Custom Designation)
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  विद्यालय का पूरा नाम *
                 </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="input-new-custom-designation"
-                    type="text"
-                    value={newCustomDesignation}
-                    onChange={(e) => setNewCustomDesignation(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddCustomDesignation();
-                      }
-                    }}
-                    placeholder="उदा. प्रयोगशाला शिक्षक, सहायक ग्रेड-3, भृत्य..."
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                  <button
-                    id="btn-add-custom-designation"
-                    type="button"
-                    onClick={() => handleAddCustomDesignation()}
-                    disabled={!newCustomDesignation.trim()}
-                    className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>जोड़ें</span>
-                  </button>
-                </div>
+                <input
+                  type="text"
+                  required
+                  value={newSchoolName}
+                  onChange={(e) => setNewSchoolName(e.target.value)}
+                  placeholder="उदा. राजकीय प्राथमिक विद्यालय, नया टोला"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500"
+                />
               </div>
 
-              {/* List of Active Designations with Delete Buttons */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-700">
-                    उपलब्ध पदनाम सूची ({designations.length})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setDesignations(DEFAULT_DESIGNATIONS)}
-                    className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium underline cursor-pointer"
-                  >
-                    डिफ़ॉल्ट सूची रीसेट करें
-                  </button>
-                </div>
-
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                  {designations.length === 0 ? (
-                    <div className="text-center py-6 text-slate-400 text-xs">
-                      कोई पदनाम उपलब्ध नहीं है। ऊपर से नया पदनाम जोड़ें।
-                    </div>
-                  ) : (
-                    designations.map((desig, idx) => (
-                      <div
-                        key={desig}
-                        className="flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-slate-400 w-5">
-                            {idx + 1}.
-                          </span>
-                          <span className="text-sm font-medium text-slate-800">
-                            {desig}
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveDesignation(desig)}
-                          title="इस पदनाम को सूची से हटाएं"
-                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  UDISE कोड (11 अंक)
+                </label>
+                <input
+                  type="text"
+                  value={newUdiseCode}
+                  onChange={(e) => setNewUdiseCode(e.target.value)}
+                  placeholder="उदा. 10030501201"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono"
+                />
               </div>
 
-              <div className="pt-4 border-t border-slate-200 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setIsDesignationManagerOpen(false)}
-                  className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  श्रेणी / स्तर
+                </label>
+                <select
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white"
                 >
-                  पूर्ण हुआ (Done)
-                </button>
+                  <option value="प्राथमिक विद्यालय (कक्षा 1-5)">प्राथमिक विद्यालय (कक्षा 1-5)</option>
+                  <option value="मध्य विद्यालय (कक्षा 1-8)">मध्य विद्यालय (कक्षा 1-8)</option>
+                  <option value="उच्च माध्यमिक विद्यालय (कक्षा 9-12)">उच्च माध्यमिक विद्यालय (कक्षा 9-12)</option>
+                  <option value="उत्क्रमित माध्यमिक विद्यालय">उत्क्रमित माध्यमिक विद्यालय</option>
+                  <option value="कस्तूरबा गांधी बालिका विद्यालय">कस्तूरबा गांधी बालिका विद्यालय (KGBV)</option>
+                </select>
               </div>
-            </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs mt-2"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                विद्यालय सुरक्षित करें
+              </button>
+            </form>
+          </div>
+
+          {/* Schools List */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs lg:col-span-2 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">
+              संकुल अंतर्गत संबद्ध विद्यालयों की सूची ({schools.length})
+            </h3>
+
+            {schools.length === 0 ? (
+              <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
+                कोई विद्यालय नहीं जोड़ा गया है।
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-1">
+                {schools.map((s) => {
+                  const count = teachers.filter(t => t.schoolName === s.name).length;
+                  return (
+                    <div key={s.id} className="p-3.5 border border-slate-200 rounded-xl hover:border-indigo-300 transition-colors bg-slate-50/50 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="font-bold text-slate-900 text-xs leading-snug">{s.name}</h4>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteSchool(s.id)}
+                            className="text-slate-400 hover:text-red-500 p-1 rounded cursor-pointer"
+                            title="हटाएं"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        {s.category && (
+                          <span className="inline-block text-[10px] text-slate-500 font-medium mt-1">
+                            {s.category}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] pt-2 border-t border-slate-200 mt-2">
+                        <span className="font-mono text-slate-600">
+                          {s.udiseCode ? `UDISE: ${s.udiseCode}` : 'UDISE: —'}
+                        </span>
+                        <span className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                          {count} शिक्षक पदस्थ
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

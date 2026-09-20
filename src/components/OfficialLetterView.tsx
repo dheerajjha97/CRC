@@ -7,10 +7,7 @@ import {
   Plus, 
   Trash2, 
   Sparkles, 
-  RotateCcw,
-  Eye,
-  CheckCircle2,
-  AlertCircle
+  CheckCircle2
 } from 'lucide-react';
 
 interface OfficialLetterViewProps {
@@ -84,6 +81,15 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
     handleFieldChange('selectedTeachers', currentTeachers);
   };
 
+  const defaultCopies = [
+    `जिला शिक्षा पदाधिकारी / जिला शिक्षा अधिकारी, जिला - ${profile.districtName || 'मुजफ्फरपुर'} की ओर सादर सूचनार्थ।`,
+    `प्रखंड शिक्षा पदाधिकारी / विकासखंड शिक्षा अधिकारी (BEO), प्रखंड/विकासखंड - ${profile.blockName || 'गायघाट'} की ओर सादर सूचनार्थ।`,
+    `प्रखंड साधन सेवी / विकासखंड स्रोत समन्वयक (BRCC), प्रखंड/विकासखंड - ${profile.blockName || 'गायघाट'} की ओर सूचनार्थ।`,
+    `संबंधित विद्यालय के प्रधानाध्यापक / प्राचार्य / प्रभारी प्रधानाध्यापक, सर्व संबंधित विद्यालय की ओर सूचना एवं आवश्यक अनुपालनार्थ।`,
+    `सर्व संबंधित शिक्षक / शिक्षिका, तत्काल आदेश पालनार्थ।`,
+    `कार्यालय संचिका / गार्ड फाइल (Guard File)।`
+  ];
+
   const handleCopyToChange = (index: number, value: string) => {
     const currentCopies = [...(editableOrder.copyTo || defaultCopies)];
     currentCopies[index] = value;
@@ -149,16 +155,6 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
   const primarySignatoryName = activeOrder.signatoryName || profile.defaultSignatory || profile.centerHead || 'संकुल प्राचार्य / समन्वयक';
   const primarySignatoryDesignation = activeOrder.signatoryDesignation || profile.defaultDesignation || profile.headDesignation || 'संकुल समन्वयक / प्राचार्य';
   const clusterTitle = profile.clusterName || 'संकुल संसाधन केंद्र (CRC)';
-
-  // Default Endorsement copies
-  const defaultCopies = [
-    `जिला शिक्षा पदाधिकारी / जिला शिक्षा अधिकारी, जिला - ${profile.districtName || 'मुजफ्फरपुर'} की ओर सादर सूचनार्थ।`,
-    `प्रखंड शिक्षा पदाधिकारी / विकासखंड शिक्षा अधिकारी (BEO), प्रखंड/विकासखंड - ${profile.blockName || 'गायघाट'} की ओर सादर सूचनार्थ।`,
-    `प्रखंड साधन सेवी / विकासखंड स्रोत समन्वयक (BRCC), प्रखंड/विकासखंड - ${profile.blockName || 'गायघाट'} की ओर सूचनार्थ।`,
-    `संबंधित विद्यालय के प्रधानाध्यापक / प्राचार्य / प्रभारी प्रधानाध्यापक, सर्व संबंधित विद्यालय की ओर सूचना एवं आवश्यक अनुपालनार्थ।`,
-    `सर्व संबंधित शिक्षक / शिक्षिका, तत्काल आदेश पालनार्थ।`,
-    `कार्यालय संचिका / गार्ड फाइल (Guard File)।`
-  ];
 
   const copyToList = activeOrder.copyTo !== undefined ? activeOrder.copyTo : defaultCopies;
   const showCopyTo = copyToList && copyToList.length > 0;
