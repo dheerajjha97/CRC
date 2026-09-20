@@ -69,4 +69,6 @@ export interface CrcProfile {
   letterPrefix: string; // उदा: सं.सं.के./2026/
   defaultSignatory: string;
   defaultDesignation: string;
+  logoUrl?: string; // कस्टम लोगो URL
+  logoVariant?: 'shiksha_vibhag' | 'bepc'; // लोगो विकल्प
 }

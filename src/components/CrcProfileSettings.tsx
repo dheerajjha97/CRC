@@ -14,6 +14,7 @@ import {
   Tag
 } from 'lucide-react';
 import { DEFAULT_DESIGNATIONS } from './TeacherManagement';
+import { BiharEducationLogo } from './BiharEducationLogo';
 
 interface CrcProfileSettingsProps {
   profile: CrcProfile;
@@ -262,6 +263,68 @@ export const CrcProfileSettings: React.FC<CrcProfileSettingsProps> = ({
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500"
                 placeholder="उदा. +91 98765 43210"
               />
+            </div>
+
+            <div className="md:col-span-2 bg-gradient-to-r from-amber-50/80 to-indigo-50/80 border border-slate-300 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-indigo-600" />
+                  आदेश पत्र एवं पीडीएफ हेतु आधिकारिक लोगो चयन (Official Logo)
+                </label>
+                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                  {formData.logoVariant === 'bepc' ? 'बिहार शिक्षा परियोजना सक्रिय' : 'शिक्षा विभाग, बिहार सरकार सक्रिय'}
+                </span>
+              </div>
+
+              {/* Logo Choice Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                {/* Choice 1: शिक्षा विभाग, बिहार सरकार (Image 6) */}
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, logoVariant: 'shiksha_vibhag', logoUrl: '' })}
+                  className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                    (!formData.logoVariant || formData.logoVariant === 'shiksha_vibhag') && !formData.logoUrl
+                      ? 'border-emerald-600 bg-white ring-2 ring-emerald-500 shadow-xs'
+                      : 'border-slate-200 bg-white/70 hover:bg-white'
+                  }`}
+                >
+                  <BiharEducationLogo size={52} variant="shiksha_vibhag" className="shrink-0" />
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">शिक्षा विभाग, बिहार सरकार</div>
+                    <div className="text-[11px] text-slate-600">बोधिवृक्ष, पेंसिल एवं खुली पुस्तक प्रतीक (मानक)</div>
+                  </div>
+                </button>
+
+                {/* Choice 2: बिहार शिक्षा परियोजना (Image 5) */}
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, logoVariant: 'bepc', logoUrl: '' })}
+                  className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                    formData.logoVariant === 'bepc' && !formData.logoUrl
+                      ? 'border-indigo-600 bg-white ring-2 ring-indigo-500 shadow-xs'
+                      : 'border-slate-200 bg-white/70 hover:bg-white'
+                  }`}
+                >
+                  <BiharEducationLogo size={52} variant="bepc" className="shrink-0" />
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">बिहार शिक्षा परियोजना परिषद</div>
+                    <div className="text-[11px] text-slate-600">BEPC आधिकारिक नीला वृत्ताकार सील</div>
+                  </div>
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  या अन्य कस्टम लोगो इमेज URL (वैकल्पिक):
+                </label>
+                <input
+                  type="url"
+                  value={formData.logoUrl || ''}
+                  onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                  className="w-full px-3 py-1.5 border border-slate-300 bg-white rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                  placeholder="यदि अपनी संस्था का अलग लोगो लगाना चाहें तो यहाँ URL डालें (अन्यथा खाली रहने दें)..."
+                />
+              </div>
             </div>
           </div>
 

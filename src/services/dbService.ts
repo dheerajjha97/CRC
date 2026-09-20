@@ -15,15 +15,15 @@ import { db } from '../firebase';
 import { Teacher, OfficeOrder, CrcProfile, ClusterSchool } from '../types';
 
 export const DEFAULT_CRC_PROFILE: CrcProfile = {
-  clusterName: 'संकुल संसाधन केंद्र (CRC) - शासकीय उच्चतर माध्यमिक विद्यालय',
-  blockName: 'सदर विकासखंड',
-  districtName: 'रायपुर',
-  stateName: 'छत्तीसगढ़',
+  clusterName: 'संकुल संसाधन केंद्र (CRC) - उत्क्रमित उच्च माध्यमिक विद्यालय',
+  blockName: 'सदर प्रखंड',
+  districtName: 'पटना',
+  stateName: 'बिहार',
   centerHead: 'डॉ. रमेश कुमार वर्मा',
   headDesignation: 'संकुल प्राचार्य / समन्वयक',
   phone: '+91 98765 43210',
-  email: 'crc.office.edu@gov.in',
-  officeAddress: 'संकुल संसाधन केंद्र, मुख्य परिसर, शिक्षा संभाग',
+  email: 'crc.bihar.edu@gov.in',
+  officeAddress: 'संकुल संसाधन केंद्र, शिक्षा विभाग, बिहार',
   letterPrefix: 'क्र./सं.सं.के./2026/',
   defaultSignatory: 'डॉ. रमेश कुमार वर्मा',
   defaultDesignation: 'प्राचार्य / संकुल समन्वयक'

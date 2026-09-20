@@ -26,6 +26,7 @@ import { OrderGenerator } from './components/OrderGenerator';
 import { OrderHistory } from './components/OrderHistory';
 import { CrcProfileSettings } from './components/CrcProfileSettings';
 import { AiOrderAssistant } from './components/AiOrderAssistant';
+import { BiharEducationLogo } from './components/BiharEducationLogo';
 import { 
   FileText, 
   Users, 
@@ -216,15 +217,18 @@ export default function App() {
           <div className="flex items-center justify-between h-16">
             {/* Logo & Title */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
-                <Building className="w-5 h-5" />
-              </div>
+              <BiharEducationLogo size={42} customUrl={profile.logoUrl} variant={profile.logoVariant || 'shiksha_vibhag'} className="shrink-0" />
               <div>
-                <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
-                  संकुल संसाधन केंद्र (CRC)
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+                    शिक्षा विभाग, बिहार
+                  </h1>
+                  <span className="hidden sm:inline-block text-[10px] bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded-full border border-amber-300">
+                    CRC पोर्टल
+                  </span>
+                </div>
                 <p className="text-xs text-slate-500 hidden sm:block">
-                  कार्यालयीन आदेश, शिक्षक चयन एवं पीडीएफ पत्र जनरेटर
+                  {profile.clusterName || 'संकुल संसाधन केंद्र'} • कार्यालयीन आदेश एवं पत्र जनरेटर
                 </p>
               </div>
             </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { OfficeOrder, CrcProfile } from '../types';
+import { BiharEducationLogo } from './BiharEducationLogo';
 
 interface OfficialLetterViewProps {
   order: OfficeOrder;
@@ -93,30 +94,18 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
           className="flex items-center justify-center gap-3.5 mb-1.5"
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', marginBottom: '6px' }}
         >
-          {/* Official Emblem Badge */}
-          <div 
-            className="w-12 h-12 rounded-full border-2 border-slate-800 flex flex-col items-center justify-center bg-slate-50 font-bold text-[11px] leading-none text-slate-800 shrink-0"
-            style={{ 
-              width: '48px', 
-              height: '48px', 
-              borderRadius: '50%', 
-              border: '2px solid #1e293b', 
-              display: 'flex', 
-              flexDirection: 'column',
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              backgroundColor: '#f8fafc',
-              fontSize: '11px',
-              fontWeight: 'bold',
-              color: '#0f172a',
-              flexShrink: 0
-            }}
-          >
-            <span style={{ fontSize: '10px', letterSpacing: '0.5px' }}>{profile.stateName || 'बिहार'}</span>
-            <span style={{ fontSize: '9px', fontWeight: 'bold' }}>शासन</span>
-          </div>
+          {/* Bihar Education Department Official Emblem */}
+          <BiharEducationLogo 
+            size={58} 
+            customUrl={profile.logoUrl} 
+            variant={profile.logoVariant || 'shiksha_vibhag'}
+            className="shrink-0" 
+          />
 
           <div>
+            <div className="text-[11px] font-bold tracking-wider text-slate-700 uppercase" style={{ fontSize: '11px', letterSpacing: '1px', color: '#475569', marginBottom: '1px' }}>
+              शिक्षा विभाग • बिहार सरकार
+            </div>
             <h1 
               className="text-lg md:text-xl font-bold tracking-tight text-slate-950 leading-tight"
               style={{ fontSize: '19px', fontWeight: 'bold', color: '#020617', margin: 0, lineHeight: 1.3 }}
