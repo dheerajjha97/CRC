@@ -59,45 +59,148 @@ export function printLetterElement(elementId: string): void {
 
   printWindow.document.write(`
     <!DOCTYPE html>
-    <html>
+    <html lang="hi">
       <head>
-        <title>कार्यालयीन आदेश पत्र</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>कार्यालयीन आदेश पत्र - मुद्रण</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
         <style>
+          * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           body {
-            font-family: 'Mukta', 'Noto Sans Devanagari', sans-serif;
+            font-family: 'Mukta', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 10px 15px;
             color: #0f172a;
             background: #ffffff;
             font-size: 14px;
-            line-height: 1.6;
+            line-height: 1.65;
+            -webkit-font-smoothing: antialiased;
+          }
+          .official-letter-page {
+            max-width: 100% !important;
+            margin: 0 auto;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+          }
+          .flex {
+            display: flex;
+          }
+          .items-center {
+            align-items: center;
+          }
+          .items-start {
+            align-items: flex-start;
+          }
+          .items-end {
+            align-items: flex-end;
+          }
+          .justify-center {
+            justify-content: center;
+          }
+          .justify-between {
+            justify-content: space-between;
+          }
+          .justify-end {
+            justify-content: flex-end;
+          }
+          .text-center {
+            text-align: center;
+          }
+          .text-right {
+            text-align: right;
+          }
+          .text-left {
+            text-align: left;
+          }
+          .text-justify {
+            text-align: justify;
+            text-justify: inter-word;
+          }
+          .font-bold {
+            font-weight: 700;
+          }
+          .font-semibold {
+            font-weight: 600;
+          }
+          .font-medium {
+            font-weight: 500;
+          }
+          .underline {
+            text-decoration: underline;
+          }
+          .w-full {
+            width: 100%;
+          }
+          .border {
+            border: 1px solid #cbd5e1;
+          }
+          .border-b {
+            border-bottom: 1px solid #cbd5e1;
+          }
+          .border-b-2 {
+            border-bottom: 2px solid #0f172a;
+          }
+          .border-t {
+            border-top: 1px solid #cbd5e1;
+          }
+          .rounded {
+            border-radius: 4px;
+          }
+          .rounded-lg {
+            border-radius: 8px;
+          }
+          .rounded-full {
+            border-radius: 9999px;
           }
           table {
             width: 100%;
             border-collapse: collapse;
-            margin: 14px 0;
+            margin: 10px 0;
+            font-size: 13px;
           }
           th, td {
             border: 1px solid #334155;
-            padding: 6px 10px;
+            padding: 6px 9px;
             text-align: left;
           }
           th {
-            background-color: #f1f5f9;
-            font-weight: 600;
+            background-color: #f1f5f9 !important;
+            color: #020617;
+            font-weight: 700;
+          }
+          tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          .primary-signatory-block, .endorsement-copy-to-block, .meeting-details-box {
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
           @page {
-            size: A4;
-            margin: 15mm;
+            size: A4 portrait;
+            margin: 12mm 14mm;
           }
           @media print {
-            body { padding: 0; }
+            body { 
+              padding: 0; 
+              margin: 0; 
+            }
+            .official-letter-page {
+              padding: 0 !important;
+            }
           }
         </style>
       </head>
       <body>
-        ${element.innerHTML}
+        ${element.outerHTML || element.innerHTML}
       </body>
     </html>
   `);
