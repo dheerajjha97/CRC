@@ -15,71 +15,50 @@ import { db } from '../firebase';
 import { Teacher, OfficeOrder, CrcProfile, ClusterSchool } from '../types';
 
 export const DEFAULT_CRC_PROFILE: CrcProfile = {
-  clusterName: 'संकुल संसाधन केंद्र (CRC) - उत्क्रमित उच्च माध्यमिक विद्यालय',
-  blockName: 'सदर प्रखंड',
-  districtName: 'पटना',
+  clusterName: 'संकुल संसाधन केंद्र (CRC)',
+  blockName: '',
+  districtName: '',
   stateName: 'बिहार',
-  centerHead: 'डॉ. रमेश कुमार वर्मा',
-  headDesignation: 'संकुल प्राचार्य / समन्वयक',
-  phone: '+91 98765 43210',
-  email: 'crc.bihar.edu@gov.in',
+  centerHead: '',
+  headDesignation: 'प्राचार्य / संकुल समन्वयक',
+  phone: '',
+  email: '',
   officeAddress: 'संकुल संसाधन केंद्र, शिक्षा विभाग, बिहार',
   letterPrefix: 'क्र./सं.सं.के./2026/',
-  defaultSignatory: 'डॉ. रमेश कुमार वर्मा',
+  defaultSignatory: '',
   defaultDesignation: 'प्राचार्य / संकुल समन्वयक'
 };
 
-export const INITIAL_SCHOOLS: Omit<ClusterSchool, 'id'>[] = [
-  { name: 'शासकीय प्राथमिक शाला, नयापारा', udiseCode: '22100401201', category: 'प्राथमिक शाला', village: 'नयापारा' },
-  { name: 'शासकीय प्राथमिक शाला, पटेलपारा', udiseCode: '22100401202', category: 'प्राथमिक शाला', village: 'पटेलपारा' },
-  { name: 'शासकीय पूर्व माध्यमिक शाला, रामपुर', udiseCode: '22100401203', category: 'माध्यमिक शाला', village: 'रामपुर' },
-  { name: 'शासकीय कन्या पूर्व माध्यमिक शाला', udiseCode: '22100401204', category: 'कन्या माध्यमिक शाला', village: 'मुख्य ग्राम' },
-  { name: 'शासकीय उच्चतर माध्यमिक विद्यालय संकुल केंद्र', udiseCode: '22100401205', category: 'उच्चतर माध्यमिक विद्यालय', village: 'संकुल मुख्यालय' },
+// Known demo records list for cleanup
+export const DEMO_TEACHER_NAMES = [
+  'श्री राजेश कुमार साहू',
+  'श्रीमती सुनीता शर्मा',
+  'श्री अनिल कुमार देवांगन',
+  'सुश्री नीलम सिंह',
+  'श्री मनोज कुमार वर्मा',
+  'श्रीमती कंचन लता मिंज'
 ];
 
-export const INITIAL_TEACHERS: Omit<Teacher, 'id'>[] = [
-  {
-    name: 'श्री राजेश कुमार साहू',
-    designation: 'सहायक शिक्षक (LB)',
-    schoolName: 'शासकीय प्राथमिक शाला, नयापारा'
-  },
-  {
-    name: 'श्रीमती सुनीता शर्मा',
-    designation: 'प्रधान पाठक (प्राथमिक शाला)',
-    schoolName: 'शासकीय प्राथमिक शाला, पटेलपारा'
-  },
-  {
-    name: 'श्री अनिल कुमार देवांगन',
-    designation: 'उच्च श्रेणी शिक्षक (शिक्षक LB)',
-    schoolName: 'शासकीय पूर्व माध्यमिक शाला, रामपुर'
-  },
-  {
-    name: 'सुश्री नीलम सिंह',
-    designation: 'उच्च श्रेणी शिक्षक',
-    schoolName: 'शासकीय कन्या पूर्व माध्यमिक शाला'
-  },
-  {
-    name: 'श्री मनोज कुमार वर्मा',
-    designation: 'व्याख्याता (एल.बी.)',
-    schoolName: 'शासकीय उच्चतर माध्यमिक विद्यालय संकुल केंद्र'
-  },
-  {
-    name: 'श्रीमती कंचन लता मिंज',
-    designation: 'सहायक शिक्षक',
-    schoolName: 'शासकीय प्राथमिक शाला, नयापारा'
-  }
+export const DEMO_SCHOOL_NAMES = [
+  'शासकीय प्राथमिक शाला, नयापारा',
+  'शासकीय प्राथमिक शाला, पटेलपारा',
+  'शासकीय पूर्व माध्यमिक शाला, रामपुर',
+  'शासकीय कन्या पूर्व माध्यमिक शाला',
+  'शासकीय उच्चतर माध्यमिक विद्यालय संकुल केंद्र'
+];
+
+export const DEMO_UDISE_CODES = [
+  '22100401201',
+  '22100401202',
+  '22100401203',
+  '22100401204',
+  '22100401205'
 ];
 
 export async function getTeachersFromDb(): Promise<Teacher[]> {
   try {
     const q = query(collection(db, 'teachers'), orderBy('name', 'asc'));
     const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-      // Seed initial sample teachers if empty
-      await seedInitialTeachers();
-      const newSnap = await getDocs(q);
-      return newSnap.docs.map(d => ({ id: d.id, ...d.data() } as Teacher));
-    }
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Teacher));
   } catch (err) {
     console.error('Error getting teachers:', err);
@@ -87,17 +66,75 @@ export async function getTeachersFromDb(): Promise<Teacher[]> {
   }
 }
 
-export async function seedInitialTeachers(): Promise<void> {
-  const batch = writeBatch(db);
-  const teachersCol = collection(db, 'teachers');
-  INITIAL_TEACHERS.forEach(t => {
-    const docRef = doc(teachersCol);
-    batch.set(docRef, {
-      ...t,
-      createdAt: new Date().toISOString()
+export async function cleanupDemoDataFromDb(): Promise<{ deletedTeachers: number; deletedSchools: number }> {
+  let deletedTeachers = 0;
+  let deletedSchools = 0;
+
+  try {
+    // 1. Clean demo teachers
+    const teacherSnap = await getDocs(collection(db, 'teachers'));
+    const batch = writeBatch(db);
+    let hasTeacherBatch = false;
+
+    teacherSnap.docs.forEach(docSnap => {
+      const data = docSnap.data();
+      const isDemo = DEMO_TEACHER_NAMES.some(
+        name => data.name && (data.name.trim() === name || data.name.includes(name))
+      );
+      if (isDemo) {
+        batch.delete(docSnap.ref);
+        deletedTeachers++;
+        hasTeacherBatch = true;
+      }
     });
-  });
-  await batch.commit();
+
+    if (hasTeacherBatch) {
+      await batch.commit();
+    }
+
+    // 2. Clean demo schools
+    const schoolSnap = await getDocs(collection(db, 'schools'));
+    const schoolBatch = writeBatch(db);
+    let hasSchoolBatch = false;
+
+    schoolSnap.docs.forEach(docSnap => {
+      const data = docSnap.data();
+      const isDemoName = DEMO_SCHOOL_NAMES.some(
+        name => data.name && (data.name.trim() === name || data.name.includes(name))
+      );
+      const isDemoUdise = DEMO_UDISE_CODES.some(
+        code => data.udiseCode && data.udiseCode.trim() === code
+      );
+      if (isDemoName || isDemoUdise) {
+        schoolBatch.delete(docSnap.ref);
+        deletedSchools++;
+        hasSchoolBatch = true;
+      }
+    });
+
+    if (hasSchoolBatch) {
+      await schoolBatch.commit();
+    }
+
+    // 3. Clean dummy profile name if present
+    const profileRef = doc(db, 'settings', 'crc_office');
+    const profileSnap = await getDoc(profileRef);
+    if (profileSnap.exists()) {
+      const pData = profileSnap.data();
+      if (pData.centerHead === 'डॉ. रमेश कुमार वर्मा' || pData.defaultSignatory === 'डॉ. रमेश कुमार वर्मा') {
+        await updateDoc(profileRef, {
+          centerHead: '',
+          defaultSignatory: '',
+          phone: pData.phone === '+91 98765 43210' ? '' : pData.phone,
+          email: pData.email === 'crc.bihar.edu@gov.in' ? '' : pData.email
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error cleaning demo data:', err);
+  }
+
+  return { deletedTeachers, deletedSchools };
 }
 
 export async function addTeacherToDb(teacher: Omit<Teacher, 'id'>): Promise<string> {
@@ -176,17 +213,6 @@ export async function getSchoolsFromDb(): Promise<ClusterSchool[]> {
   try {
     const q = query(collection(db, 'schools'), orderBy('name', 'asc'));
     const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-      const batch = writeBatch(db);
-      const schoolsCol = collection(db, 'schools');
-      INITIAL_SCHOOLS.forEach(s => {
-        const docRef = doc(schoolsCol);
-        batch.set(docRef, s);
-      });
-      await batch.commit();
-      const newSnap = await getDocs(q);
-      return newSnap.docs.map(d => ({ id: d.id, ...d.data() } as ClusterSchool));
-    }
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ClusterSchool));
   } catch (err) {
     console.error('Error getting schools:', err);

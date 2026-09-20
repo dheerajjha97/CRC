@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Teacher, OfficeOrder, SelectedTeacherInOrder, CrcProfile, ClusterSchool } from '../types';
 import { ORDER_TEMPLATES } from '../utils/orderTemplates';
-import { INITIAL_SCHOOLS } from '../services/dbService';
 import { OfficialLetterView } from './OfficialLetterView';
 import { downloadElementAsPdf, printLetterElement } from '../utils/pdfGenerator';
 import { generateNextOrderNumber, getHighestOrderSequence, extractSequenceNumber } from '../utils/orderNumberUtils';
@@ -181,9 +180,6 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
     }
     teachers.forEach(t => {
       if (t.schoolName?.trim()) schoolSet.add(t.schoolName.trim());
-    });
-    INITIAL_SCHOOLS.forEach(s => {
-      if (s.name?.trim()) schoolSet.add(s.name.trim());
     });
     if (profile.clusterName?.trim()) {
       schoolSet.add(profile.clusterName.trim());

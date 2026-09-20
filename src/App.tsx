@@ -19,6 +19,7 @@ import {
   getSchoolsFromDb,
   addSchoolToDb,
   deleteSchoolFromDb,
+  cleanupDemoDataFromDb,
   DEFAULT_CRC_PROFILE
 } from './services/dbService';
 import { TeacherManagement } from './components/TeacherManagement';
@@ -56,11 +57,14 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingOrder, setEditingOrder] = useState<OfficeOrder | null>(null);
 
-  // Load initial data from Firestore
+  // Load initial data from Firestore and ensure all demo data is cleared
   useEffect(() => {
     async function loadAllData() {
       setIsLoading(true);
       try {
+        // Automatically cleanup any lingering demo entries in Firestore
+        await cleanupDemoDataFromDb();
+
         const [loadedTeachers, loadedOrders, loadedSchools, loadedProfile] = await Promise.all([
           getTeachersFromDb(),
           getOrdersFromDb(),
@@ -81,6 +85,20 @@ export default function App() {
 
     loadAllData();
   }, []);
+
+  // Dedicated demo cleanup handler for manual invocation
+  const handleCleanupDemoData = async () => {
+    const result = await cleanupDemoDataFromDb();
+    const [refreshedTeachers, refreshedSchools, refreshedProfile] = await Promise.all([
+      getTeachersFromDb(),
+      getSchoolsFromDb(),
+      getCrcProfileFromDb()
+    ]);
+    setTeachers(refreshedTeachers);
+    setSchools(refreshedSchools);
+    setProfile(refreshedProfile);
+    return result;
+  };
 
   // Teacher Handlers
   const handleAddTeacher = async (newTeacher: Omit<Teacher, 'id'>) => {
@@ -356,6 +374,7 @@ export default function App() {
                 onSaveProfile={handleSaveProfile}
                 onAddSchool={handleAddSchool}
                 onDeleteSchool={handleDeleteSchool}
+                onCleanupDemoData={handleCleanupDemoData}
               />
             )}
           </>

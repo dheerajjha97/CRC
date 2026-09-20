@@ -22,6 +22,7 @@ interface CrcProfileSettingsProps {
   onSaveProfile: (profile: CrcProfile) => Promise<void>;
   onAddSchool: (school: Omit<ClusterSchool, 'id'>) => Promise<void>;
   onDeleteSchool: (id: string) => Promise<void>;
+  onCleanupDemoData?: () => Promise<{ deletedTeachers: number; deletedSchools: number }>;
 }
 
 export const CrcProfileSettings: React.FC<CrcProfileSettingsProps> = ({
@@ -29,11 +30,14 @@ export const CrcProfileSettings: React.FC<CrcProfileSettingsProps> = ({
   schools,
   onSaveProfile,
   onAddSchool,
-  onDeleteSchool
+  onDeleteSchool,
+  onCleanupDemoData
 }) => {
   const [formData, setFormData] = useState<CrcProfile>({ ...profile });
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isCleaningDemo, setIsCleaningDemo] = useState(false);
+  const [cleanDemoMessage, setCleanDemoMessage] = useState<string | null>(null);
 
   // New School Form
   const [newSchool, setNewSchool] = useState({
@@ -405,31 +409,39 @@ export const CrcProfileSettings: React.FC<CrcProfileSettingsProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {schools.map((s, idx) => (
-                <tr key={s.id} className="hover:bg-slate-50">
-                  <td className="py-2.5 px-4 text-center text-slate-500 text-xs font-medium">
-                    {idx + 1}
-                  </td>
-                  <td className="py-2.5 px-4 font-semibold text-slate-900">
-                    {s.name}
-                  </td>
-                  <td className="py-2.5 px-4 font-mono text-xs text-slate-600">
-                    {s.udiseCode || '-'}
-                  </td>
-                  <td className="py-2.5 px-4 text-xs text-slate-600">
-                    {s.category || 'विद्यालय'}
-                  </td>
-                  <td className="py-2.5 px-4 text-center">
-                    <button
-                      onClick={() => setSchoolToDelete(s)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                      title="हटाएं"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+              {schools.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
+                    कोई विद्यालय दर्ज नहीं है। ऊपर दिए गए फॉर्म से अपने संकुल के विद्यालय जोड़ें।
                   </td>
                 </tr>
-              ))}
+              ) : (
+                schools.map((s, idx) => (
+                  <tr key={s.id} className="hover:bg-slate-50">
+                    <td className="py-2.5 px-4 text-center text-slate-500 text-xs font-medium">
+                      {idx + 1}
+                    </td>
+                    <td className="py-2.5 px-4 font-semibold text-slate-900">
+                      {s.name}
+                    </td>
+                    <td className="py-2.5 px-4 font-mono text-xs text-slate-600">
+                      {s.udiseCode || '-'}
+                    </td>
+                    <td className="py-2.5 px-4 text-xs text-slate-600">
+                      {s.category || 'विद्यालय'}
+                    </td>
+                    <td className="py-2.5 px-4 text-center">
+                      <button
+                        onClick={() => setSchoolToDelete(s)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                        title="हटाएं"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -527,6 +539,64 @@ export const CrcProfileSettings: React.FC<CrcProfileSettingsProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Database Maintenance & Demo Data Cleaner Card */}
+      {onCleanupDemoData && (
+        <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-red-600" />
+                डेटाबेस रखरखाव एवं डेमो डेटा निष्कासन (Clean Demo Data)
+              </h2>
+              <p className="text-xs text-slate-600 mt-1">
+                यदि डेटाबेस में कोई प्रारंभिक नमूना / डेमो शिक्षक या शालाएं मौजूद हों, तो उन्हें हटाकर केवल आपका वास्तविक (Original) डेटा सुरक्षित रखें
+              </p>
+            </div>
+            {cleanDemoMessage && (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded-lg font-semibold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                {cleanDemoMessage}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-bold text-amber-900">
+                डेमो / डमी डेटा साफ़ करें
+              </h4>
+              <p className="text-xs text-amber-800 mt-0.5">
+                यह प्रक्रिया केवल प्रारंभिक नमूना शिक्षकों व शालाओं को हटाती है। आपके द्वारा बनाए गए वास्तविक आदेश, असली शिक्षक व शालाएं पूरी तरह सुरक्षित रहेंगी।
+              </p>
+            </div>
+
+            <button
+              id="btn-cleanup-demo-data"
+              type="button"
+              disabled={isCleaningDemo}
+              onClick={async () => {
+                if (window.confirm('क्या आप डेटाबेस से सभी डेमो / नमूना डेटा हटाना चाहते हैं?')) {
+                  setIsCleaningDemo(true);
+                  try {
+                    const result = await onCleanupDemoData();
+                    setCleanDemoMessage(`डेमो डेटा सफलतापूर्वक साफ़ किया गया! (${result.deletedTeachers} डेमो शिक्षक, ${result.deletedSchools} डेमो शालाएं हटाई गईं)`);
+                    setTimeout(() => setCleanDemoMessage(null), 5000);
+                  } catch (err) {
+                    console.error(err);
+                  } finally {
+                    setIsCleaningDemo(false);
+                  }
+                }
+              }}
+              className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+            >
+              <Trash2 className="w-4 h-4" />
+              {isCleaningDemo ? 'साफ़ किया जा रहा है...' : 'डेमो डेटा हटाएं (Remove Demo Data)'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Delete School Success Toast Banner */}
       {deleteSchoolMessage && (
