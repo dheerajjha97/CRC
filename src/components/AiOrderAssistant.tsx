@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Teacher, OfficeOrder, CrcProfile, ClusterSchool, SelectedTeacherInOrder } from '../types';
 import { generateSmartLocalDraft } from '../utils/aiDraftEngine';
+import { generateNextOrderNumber, getHighestOrderSequence } from '../utils/orderNumberUtils';
 import { 
   Sparkles, 
   Send, 
@@ -20,14 +21,21 @@ import {
   MapPin,
   ChevronRight,
   HelpCircle,
-  Lightbulb
+  Lightbulb,
+  ClipboardList,
+  Save,
+  BookOpen,
+  Hash
 } from 'lucide-react';
 
 interface AiOrderAssistantProps {
   teachers: Teacher[];
   profile: CrcProfile;
   schools: ClusterSchool[];
+  orders?: OfficeOrder[];
   onApplyDraftToOrder: (draft: Partial<OfficeOrder>) => void;
+  onDirectSaveToHistory?: (draft: Partial<OfficeOrder>) => Promise<string>;
+  onNavigateToHistory?: () => void;
 }
 
 interface ChatMessage {
@@ -80,8 +88,16 @@ export const AiOrderAssistant: React.FC<AiOrderAssistantProps> = ({
   teachers,
   profile,
   schools,
+  orders = [],
   onApplyDraftToOrder,
+  onDirectSaveToHistory,
+  onNavigateToHistory,
 }) => {
+  const highestSavedSeq = useMemo(() => getHighestOrderSequence(orders), [orders]);
+  const defaultNextOrderNum = useMemo(
+    () => generateNextOrderNumber(orders, profile.letterPrefix),
+    [orders, profile.letterPrefix]
+  );
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome-msg',
@@ -95,6 +111,8 @@ export const AiOrderAssistant: React.FC<AiOrderAssistantProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [copiedDraftId, setCopiedDraftId] = useState<string | null>(null);
   const [appliedDraftId, setAppliedDraftId] = useState<string | null>(null);
+  const [directSavedMap, setDirectSavedMap] = useState<Record<string, { savedId: string; orderNumber: string }>>({});
+  const [isDirectSavingId, setIsDirectSavingId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -221,6 +239,51 @@ export const AiOrderAssistant: React.FC<AiOrderAssistantProps> = ({
       meetingTime: draft.meetingTime,
       meetingVenue: draft.meetingVenue,
     });
+  };
+
+  const handleDirectSave = async (msgId: string, draft?: ChatMessage['orderDraft']) => {
+    if (!draft || !onDirectSaveToHistory) return;
+    setIsDirectSavingId(msgId);
+    try {
+      // Map matched teachers
+      const matchedTeachers: SelectedTeacherInOrder[] = (draft.selectedTeachers || []).map((st) => {
+        const existing = teachers.find(
+          (t) => t.name.trim().toLowerCase() === st.name.trim().toLowerCase() ||
+                 (t.name.includes(st.name) || st.name.includes(t.name))
+        );
+
+        return {
+          id: existing?.id || st.id || `teacher-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          name: existing?.name || st.name,
+          designation: existing?.designation || st.designation,
+          schoolName: existing?.schoolName || st.schoolName,
+          deputedSchool: st.deputedSchool,
+          assignedDutyRole: st.assignedDutyRole || 'उपस्थिति / दायित्व निर्वहन',
+        };
+      });
+
+      const savedId = await onDirectSaveToHistory({
+        subject: draft.subject,
+        reference: draft.reference,
+        orderType: draft.orderType,
+        content: draft.content,
+        includeDeputedSchool: draft.includeDeputedSchool,
+        selectedTeachers: matchedTeachers,
+        meetingDate: draft.meetingDate,
+        meetingTime: draft.meetingTime,
+        meetingVenue: draft.meetingVenue,
+      });
+
+      setDirectSavedMap(prev => ({
+        ...prev,
+        [msgId]: { savedId, orderNumber: 'जावक पंजी में सुरक्षित' }
+      }));
+    } catch (err) {
+      console.error(err);
+      alert('जावक पंजी में सेव करने में त्रुटि हुई।');
+    } finally {
+      setIsDirectSavingId(null);
+    }
   };
 
   return (
@@ -361,6 +424,26 @@ export const AiOrderAssistant: React.FC<AiOrderAssistantProps> = ({
                     </div>
                   )}
 
+                  {/* Saved Status Banner if saved directly */}
+                  {directSavedMap[msg.id] && (
+                    <div className="mt-2 p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between gap-2 text-emerald-900 text-xs">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>आदेश पत्र जावक पंजी (Dispatch Register) में सुरक्षित हो गया है!</span>
+                      </div>
+                      {onNavigateToHistory && (
+                        <button
+                          type="button"
+                          onClick={onNavigateToHistory}
+                          className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer shrink-0 transition-colors shadow-xs"
+                        >
+                          <BookOpen className="w-3 h-3" />
+                          <span>जावक पंजी देखें</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Action Buttons */}
                   <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
                     <button
@@ -381,6 +464,36 @@ export const AiOrderAssistant: React.FC<AiOrderAssistantProps> = ({
                       )}
                     </button>
 
+                    {onDirectSaveToHistory && (
+                      <button
+                        type="button"
+                        disabled={isDirectSavingId === msg.id || Boolean(directSavedMap[msg.id])}
+                        onClick={() => handleDirectSave(msg.id, msg.orderDraft)}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors ${
+                          directSavedMap[msg.id]
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        }`}
+                      >
+                        {isDirectSavingId === msg.id ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>सेव हो रहा है...</span>
+                          </>
+                        ) : directSavedMap[msg.id] ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>जावक पंजी में दर्ज ✓</span>
+                          </>
+                        ) : (
+                          <>
+                            <ClipboardList className="w-3.5 h-3.5" />
+                            <span>जावक पंजी में सेव करें</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => handleApplyToForm(msg.id, msg.orderDraft)}
@@ -393,7 +506,7 @@ export const AiOrderAssistant: React.FC<AiOrderAssistantProps> = ({
                         </>
                       ) : (
                         <>
-                          <span>आदेश फॉर्म में लोड करें (Apply)</span>
+                          <span>फॉर्म में खोलें व प्रिंट करें</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </>
                       )}

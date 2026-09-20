@@ -27,6 +27,7 @@ import { OrderHistory } from './components/OrderHistory';
 import { CrcProfileSettings } from './components/CrcProfileSettings';
 import { AiOrderAssistant } from './components/AiOrderAssistant';
 import { BiharEducationLogo } from './components/BiharEducationLogo';
+import { generateNextOrderNumber, getHighestOrderSequence } from './utils/orderNumberUtils';
 import { 
   FileText, 
   Users, 
@@ -38,7 +39,9 @@ import {
   Database,
   Building,
   Sparkles,
-  Bot
+  Bot,
+  BookOpen,
+  ClipboardList
 } from 'lucide-react';
 
 export default function App() {
@@ -86,7 +89,6 @@ export default function App() {
       setTeachers(prev => [{ id, ...newTeacher }, ...prev]);
     } catch (err) {
       console.error('Error adding teacher:', err);
-      // Fallback local addition if network issue
       const fallbackId = `teacher-${Date.now()}`;
       setTeachers(prev => [{ id: fallbackId, ...newTeacher }, ...prev]);
     }
@@ -111,7 +113,7 @@ export default function App() {
   };
 
   // Order Handlers
-  const handleSaveOrder = async (orderData: Omit<OfficeOrder, 'id'>) => {
+  const handleSaveOrder = async (orderData: Omit<OfficeOrder, 'id'>): Promise<string> => {
     if (editingOrder) {
       try {
         await updateOrderInDb(editingOrder.id, orderData);
@@ -153,10 +155,10 @@ export default function App() {
   };
 
   const handleApplyDraftToOrder = (draft: Partial<OfficeOrder>) => {
-    const defaultNum = `${profile.letterPrefix || 'क्र./सं.सं.के./2026/'}${Math.floor(100 + Math.random() * 900)}`;
+    const nextOrderNum = generateNextOrderNumber(orders, profile.letterPrefix);
     const fullOrder: OfficeOrder = {
       id: `ai-draft-${Date.now()}`,
-      orderNumber: draft.orderNumber || defaultNum,
+      orderNumber: draft.orderNumber || nextOrderNum,
       orderDate: draft.orderDate || new Date().toISOString().split('T')[0],
       subject: draft.subject || '',
       reference: draft.reference || 'कार्यालय विकासखंड शिक्षा अधिकारी / जिला शिक्षा अधिकारी संदर्भित पत्र क्रमांक... दिनांक...',
@@ -177,6 +179,34 @@ export default function App() {
 
     setEditingOrder(fullOrder);
     setActiveTab('create_order');
+  };
+
+  // Direct 1-Click Save to Dispatch Register from AI Assistant
+  const handleDirectSaveFromAi = async (draft: Partial<OfficeOrder>): Promise<string> => {
+    const nextOrderNum = generateNextOrderNumber(orders, profile.letterPrefix);
+    const defaultNum = draft.orderNumber || nextOrderNum;
+    const fullOrder: Omit<OfficeOrder, 'id'> = {
+      orderNumber: defaultNum,
+      orderDate: draft.orderDate || new Date().toISOString().split('T')[0],
+      subject: draft.subject || 'कार्यालयीन आदेश',
+      reference: draft.reference || '',
+      content: draft.content || '',
+      orderType: draft.orderType || 'general',
+      includeDeputedSchool: draft.includeDeputedSchool ?? Boolean(draft.selectedTeachers?.some(t => Boolean(t.deputedSchool))),
+      selectedTeachers: draft.selectedTeachers || [],
+      meetingDate: draft.meetingDate || '',
+      meetingTime: draft.meetingTime || 'प्रातः 11:00 बजे',
+      meetingVenue: draft.meetingVenue || 'संकुल संसाधन केंद्र सभागार',
+      signatoryName: profile.defaultSignatory || profile.centerHead,
+      signatoryDesignation: profile.defaultDesignation || profile.headDesignation,
+      officeName: profile.clusterName,
+      officeAddress: profile.officeAddress,
+      copyTo: [],
+      createdAt: new Date().toISOString()
+    };
+
+    const savedId = await handleSaveOrder(fullOrder);
+    return savedId;
   };
 
   // Profile & School Handlers
@@ -233,16 +263,28 @@ export default function App() {
               </div>
             </div>
 
-            {/* Firestore Status Badge & Cluster Info */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-full font-medium">
+            {/* Firestore Status Badge & Cluster Info & Quick Link to जावक पंजी */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+                  activeTab === 'history'
+                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
+                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border-indigo-200'
+                }`}
+                title="कार्यालयीन जावक पंजी खोलें"
+              >
+                <ClipboardList className="w-4 h-4" />
+                <span>जावक पंजी</span>
+                <span className="bg-indigo-200/80 text-indigo-950 text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ml-0.5">
+                  {orders.length}
+                </span>
+              </button>
+
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-full font-medium">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <Database className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Firestore ऑनलाइन</span>
-              </div>
-
-              <div className="text-xs text-slate-600 bg-slate-100 px-3 py-1 rounded-md font-medium truncate max-w-[160px] sm:max-w-none">
-                <span>{profile.clusterName || 'संकुल मुख्यालय'}</span>
+                <span>सुरक्षित (Cloud Firestore)</span>
               </div>
             </div>
           </div>
@@ -255,7 +297,7 @@ export default function App() {
           <div className="flex flex-col items-center justify-center py-24 space-y-4">
             <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
             <p className="text-sm font-semibold text-slate-600">
-              Firestore डेटाबेस से संकुल रिकॉर्ड लोड किया जा रहा है...
+              Firestore डेटाबेस से संकुल रिकॉर्ड व जावक पंजी लोड की जा रही है...
             </p>
           </div>
         ) : (
@@ -265,10 +307,12 @@ export default function App() {
                 teachers={teachers}
                 schools={schools}
                 profile={profile}
+                orders={orders}
                 onSaveOrder={handleSaveOrder}
                 editingOrder={editingOrder}
                 onCancelEdit={() => setEditingOrder(null)}
                 onOpenAiChat={() => setActiveTab('ai_assistant')}
+                onNavigateToHistory={() => setActiveTab('history')}
               />
             )}
 
@@ -277,7 +321,10 @@ export default function App() {
                 teachers={teachers}
                 profile={profile}
                 schools={schools}
+                orders={orders}
                 onApplyDraftToOrder={handleApplyDraftToOrder}
+                onDirectSaveToHistory={handleDirectSaveFromAi}
+                onNavigateToHistory={() => setActiveTab('history')}
               />
             )}
 
@@ -297,6 +344,8 @@ export default function App() {
                 profile={profile}
                 onEditOrder={handleEditOrder}
                 onDeleteOrder={handleDeleteOrder}
+                onNavigateToCreate={() => setActiveTab('create_order')}
+                onNavigateToAi={() => setActiveTab('ai_assistant')}
               />
             )}
 
@@ -372,7 +421,34 @@ export default function App() {
             </span>
           </button>
 
-          {/* 3. Teachers Tab */}
+          {/* 3. History / जावक पंजी Tab (PROMINENT) */}
+          <button
+            id="bottom-nav-history"
+            onClick={() => setActiveTab('history')}
+            className={`flex-1 py-1 px-1 sm:px-2 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer relative ${
+              activeTab === 'history'
+                ? 'text-indigo-600 font-bold'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <div className={`p-1.5 rounded-lg transition-colors relative ${
+              activeTab === 'history' ? 'bg-indigo-50 text-indigo-600' : ''
+            }`}>
+              <ClipboardList className="w-5 h-5" />
+              {orders.length > 0 && (
+                <span className={`absolute -top-1 -right-2 text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                  activeTab === 'history' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {orders.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] sm:text-xs mt-0.5 tracking-tight text-center truncate max-w-full font-semibold">
+              📖 जावक पंजी
+            </span>
+          </button>
+
+          {/* 4. Teachers Tab */}
           <button
             id="bottom-nav-teachers"
             onClick={() => setActiveTab('teachers')}
@@ -396,33 +472,6 @@ export default function App() {
             </div>
             <span className="text-[11px] sm:text-xs mt-0.5 tracking-tight text-center truncate max-w-full">
               शिक्षक सूची
-            </span>
-          </button>
-
-          {/* 4. History Tab */}
-          <button
-            id="bottom-nav-history"
-            onClick={() => setActiveTab('history')}
-            className={`flex-1 py-1 px-1 sm:px-2 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer relative ${
-              activeTab === 'history'
-                ? 'text-indigo-600 font-bold'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <div className={`p-1.5 rounded-lg transition-colors relative ${
-              activeTab === 'history' ? 'bg-indigo-50 text-indigo-600' : ''
-            }`}>
-              <History className="w-5 h-5" />
-              {orders.length > 0 && (
-                <span className={`absolute -top-1 -right-2 text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
-                  activeTab === 'history' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'
-                }`}>
-                  {orders.length}
-                </span>
-              )}
-            </div>
-            <span className="text-[11px] sm:text-xs mt-0.5 tracking-tight text-center truncate max-w-full">
-              आदेश रजिस्टर
             </span>
           </button>
 

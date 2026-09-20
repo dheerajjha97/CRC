@@ -4,6 +4,7 @@ import { ORDER_TEMPLATES } from '../utils/orderTemplates';
 import { INITIAL_SCHOOLS } from '../services/dbService';
 import { OfficialLetterView } from './OfficialLetterView';
 import { downloadElementAsPdf, printLetterElement } from '../utils/pdfGenerator';
+import { generateNextOrderNumber, getHighestOrderSequence, extractSequenceNumber } from '../utils/orderNumberUtils';
 import { 
   FileText, 
   Users, 
@@ -32,31 +33,43 @@ import {
   Layers,
   Share2,
   RotateCcw,
-  ListOrdered
+  ListOrdered,
+  Hash
 } from 'lucide-react';
 
 interface OrderGeneratorProps {
   teachers: Teacher[];
   schools?: ClusterSchool[];
   profile: CrcProfile;
+  orders?: OfficeOrder[];
   onSaveOrder: (order: Omit<OfficeOrder, 'id'>) => Promise<string>;
   editingOrder?: OfficeOrder | null;
   onCancelEdit?: () => void;
   onOpenAiChat?: () => void;
+  onNavigateToHistory?: () => void;
 }
 
 export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
   teachers,
   schools = [],
   profile,
+  orders = [],
   onSaveOrder,
   editingOrder,
   onCancelEdit,
-  onOpenAiChat
+  onOpenAiChat,
+  onNavigateToHistory
 }) => {
+  // Compute next sequential order number based on saved orders
+  const highestSavedSeq = useMemo(() => getHighestOrderSequence(orders), [orders]);
+  const defaultNextOrderNum = useMemo(
+    () => generateNextOrderNumber(orders, profile.letterPrefix),
+    [orders, profile.letterPrefix]
+  );
+
   // Form State
   const [orderNumber, setOrderNumber] = useState(
-    editingOrder?.orderNumber || `${profile.letterPrefix || 'क्र./सं.सं.के./2026/'}${Math.floor(100 + Math.random() * 900)}`
+    editingOrder?.orderNumber || defaultNextOrderNum
   );
   const [orderDate, setOrderDate] = useState(
     editingOrder?.orderDate || new Date().toISOString().split('T')[0]
@@ -470,8 +483,8 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
         createdAt: editingOrder?.createdAt || new Date().toISOString()
       });
 
-      setSaveSuccessMessage('आदेश सफलतापूर्वक Firestore डेटाबेस में सुरक्षित हो गया है!');
-      setTimeout(() => setSaveSuccessMessage(''), 5000);
+      setSaveSuccessMessage(`आदेश पत्र (क्रमांक: ${orderNumber}) जावक पंजी (Dispatch Register) में सफलतापूर्वक सुरक्षित हो गया है!`);
+      setTimeout(() => setSaveSuccessMessage(''), 8000);
     } catch (err) {
       console.error(err);
       alert('ऑर्डर सहेजने में त्रुटि हुई, कृपया पुनः प्रयास करें।');
@@ -595,9 +608,21 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
       </div>
 
       {saveSuccessMessage && (
-        <div className="bg-emerald-50 border border-emerald-300 text-emerald-800 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-          <FileCheck2 className="w-5 h-5 text-emerald-600" />
-          <span>{saveSuccessMessage}</span>
+        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 px-4 py-3 rounded-xl text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-fadeIn">
+          <div className="flex items-center gap-2 font-medium">
+            <FileCheck2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span>{saveSuccessMessage}</span>
+          </div>
+          {onNavigateToHistory && (
+            <button
+              type="button"
+              onClick={onNavigateToHistory}
+              className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors shadow-xs"
+            >
+              <FileText className="w-4 h-4" />
+              <span>📖 जावक पंजी में देखें</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -663,17 +688,39 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  पत्र क्रमांक / आदेश क्रमांक <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="input-order-number"
-                  type="text"
-                  value={orderNumber}
-                  onChange={(e) => setOrderNumber(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 font-mono focus:ring-2 focus:ring-indigo-500"
-                  placeholder="उदा. क्र./सं.सं.के./2026/142"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    पत्र क्रमांक / आदेश क्रमांक <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setOrderNumber(defaultNextOrderNum)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded cursor-pointer transition-colors border border-indigo-200"
+                    title="पंजी के अगले क्रम का क्रमांक स्वतः लागू करें"
+                  >
+                    <RotateCcw className="w-3 h-3 text-indigo-600" />
+                    <span>अगला क्रमांक (#{highestSavedSeq > 0 ? highestSavedSeq + 1 : 1})</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    id="input-order-number"
+                    type="text"
+                    value={orderNumber}
+                    onChange={(e) => setOrderNumber(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 font-mono font-bold focus:ring-2 focus:ring-indigo-500"
+                    placeholder="उदा. क्र./सं.सं.के./2026/142"
+                  />
+                  <Hash className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+                  <span>जावक पंजी के पिछले संधारित क्रमांक से बढ़ते क्रम में</span>
+                  {highestSavedSeq > 0 && (
+                    <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      पिछला: #{highestSavedSeq}
+                    </span>
+                  )}
+                </p>
               </div>
 
               <div>
