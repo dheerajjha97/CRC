@@ -336,6 +336,47 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
     );
   };
 
+  // Automatically generate/derive a standard official Hindi subject from content/details
+  const handleAutoGenerateSubject = () => {
+    if (!content.trim()) {
+      alert('कृपया पहले आदेश का विवरण / निर्देश दर्ज करें।');
+      return;
+    }
+
+    const c = content.toLowerCase();
+
+    let genSubject = '';
+
+    if (c.includes('अर्धवार्षिक') || c.includes('मूल्यांकन') || c.includes('उत्तरपुस्तिका') || c.includes('जांच')) {
+      genSubject = 'अर्धवार्षिक / वार्षिक परीक्षा उत्तरपुस्तिका मूल्यांकन कार्य हेतु प्रतिनियुक्ति एवं निर्देश बाबत।';
+    } else if (c.includes('वीक्षक') || c.includes('पर्यवेक्षक') || c.includes('बोर्ड परीक्षा') || c.includes('परीक्षा केंद्र')) {
+      genSubject = 'वार्षिक / बोर्ड परीक्षा वीक्षक (Invigilator) ड्यूटी एवं सुचारू संचालन बाबत।';
+    } else if (c.includes('मासिक बैठक') || c.includes('समीक्षा बैठक') || c.includes('बैठक') || c.includes('सभागार')) {
+      genSubject = 'संकुल स्तरीय मासिक समीक्षा बैठक में अनिवार्य उपस्थिति एवं एजेंडा पालन बाबत।';
+    } else if (c.includes('प्रशिक्षण') || c.includes('fln') || c.includes('निपुण') || c.includes('कार्यशाला')) {
+      genSubject = 'निपुण भारत / FLN संकुल स्तरीय शिक्षक प्रशिक्षण कार्यशाला में उपस्थिति बाबत।';
+    } else if (c.includes('अनुपस्थित') || c.includes('स्पष्टीकरण') || c.includes('कारण बताओ') || c.includes('नोटिस')) {
+      genSubject = 'शाला में अनाधिकृत अनुपस्थिति के संबंध में स्पष्टीकरण (कारण बताओ) बाबत।';
+    } else if (c.includes('खेलकूद') || c.includes('प्रतियोगिता') || c.includes('सांस्कृतिक') || c.includes('उत्सव')) {
+      genSubject = 'संकुल स्तरीय खेलकूद एवं सांस्कृतिक प्रतियोगिता आयोजन एवं शिक्षक दायित्व बाबत।';
+    } else if (c.includes('छात्रवृत्ति') || c.includes('डीबीटी') || c.includes('पोर्टल') || c.includes('एंट्री')) {
+      genSubject = 'विद्यार्थी छात्रवृत्ति एवं सरकारी योजनाओं की ऑनलाइन पोर्टल प्रविष्टि पूर्ण करने बाबत।';
+    } else if (c.includes('प्रतिनियुक्त') || c.includes('प्रतिनियुक्ति') || c.includes('deputation')) {
+      genSubject = 'अध्यापन एवं प्रशासनिक व्यवस्था हेतु शिक्षकों की अस्थाई प्रतिनियुक्ति बाबत।';
+    } else {
+      // General heuristic extraction from first line/sentence
+      const firstLine = content.split('\n')[0].replace(/^(आदेश|सूचना|उपरोक्त|एतद द्वारा|सूचित किया जाता है कि)\s*/i, '').trim();
+      if (firstLine.length > 5) {
+        const cleaned = firstLine.length > 55 ? firstLine.substring(0, 52) + '...' : firstLine;
+        genSubject = `${cleaned} के संबंध में।`;
+      } else {
+        genSubject = 'शिक्षकों के संबंध में आवश्यक दायित्व एवं शासकीय निर्देश बाबत।';
+      }
+    }
+
+    setSubject(genSubject);
+  };
+
   // Copy To / प्रतिलिपि Handlers
   const handleAddCopyTo = (text?: string) => {
     const itemToAdd = (text !== undefined ? text : newCustomCopyTo).trim();
@@ -649,9 +690,20 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  पत्र का विषय (Subject) <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    पत्र का विषय (Subject) <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAutoGenerateSubject}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded cursor-pointer transition-colors border border-indigo-200"
+                    title="नीचे लिखे गए विवरण के आधार पर सटीक विषय तैयार करें"
+                  >
+                    <Sparkles className="w-3 h-3 text-indigo-500" />
+                    विवरण से विषय बनाएं
+                  </button>
+                </div>
                 <input
                   id="input-order-subject"
                   type="text"

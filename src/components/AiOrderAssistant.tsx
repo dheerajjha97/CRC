@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Teacher, OfficeOrder, CrcProfile, ClusterSchool, SelectedTeacherInOrder } from '../types';
+import { generateSmartLocalDraft } from '../utils/aiDraftEngine';
 import { 
   Sparkles, 
   Send, 
@@ -121,48 +122,59 @@ export const AiOrderAssistant: React.FC<AiOrderAssistantProps> = ({
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/gemini/draft-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: messageText,
-          conversationHistory: messages.map((m) => ({
-            role: m.sender === 'user' ? 'user' : 'model',
-            content: m.text,
-          })),
-          teachers,
-          profile,
-          schools,
-        }),
-      });
+      let draftResult: any = null;
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `सर्वर त्रुटि: ${response.status}`);
+      try {
+        const response = await fetch('/api/gemini/draft-order', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: messageText,
+            conversationHistory: messages.map((m) => ({
+              role: m.sender === 'user' ? 'user' : 'model',
+              content: m.text,
+            })),
+            teachers,
+            profile,
+            schools,
+          }),
+        });
+
+        if (response.ok) {
+          draftResult = await response.json();
+        }
+      } catch (networkErr) {
+        console.warn('Backend API unavailable, using built-in Smart Drafting Engine:', networkErr);
       }
 
-      const data = await response.json();
+      // If backend was unavailable or returned empty/error, use smart local engine
+      if (!draftResult || !draftResult.orderDraft) {
+        draftResult = generateSmartLocalDraft(messageText, teachers, profile, schools);
+      }
       
       const assistantMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'assistant',
-        text: data.assistantReply || 'कार्यालयीन आदेश का शासकीय प्रारूप तैयार कर दिया गया है:',
+        text: draftResult.assistantReply || 'कार्यालयीन आदेश का शासकीय प्रारूप तैयार कर दिया गया है:',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        orderDraft: data.orderDraft,
+        orderDraft: draftResult.orderDraft,
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: any) {
       console.error('Error drafting order:', err);
-      const errorMsg: ChatMessage = {
+      // Fallback guarantees resolution
+      const fallbackResult = generateSmartLocalDraft(messageText, teachers, profile, schools);
+      const fallbackMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'assistant',
-        text: `⚠️ आदेश तैयार करने में समस्या आई: ${err.message || 'कृपया दोबारा प्रयास करें।'}`,
+        text: fallbackResult.assistantReply,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        orderDraft: fallbackResult.orderDraft,
       };
-      setMessages((prev) => [...prev, errorMsg]);
+      setMessages((prev) => [...prev, fallbackMsg]);
     } finally {
       setIsLoading(false);
     }

@@ -97,72 +97,85 @@ ${JSON.stringify(conversationHistory.slice(-4), null, 2)}
 
 कृपया उपयोगकर्ता की आवश्यकतानुसार एक आदर्श शासकीय कार्यालयीन आदेश / पत्र तैयार करें और निम्नलिखित JSON स्कीमा में उत्तर प्रदान करें।`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
-      contents: promptText,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            assistantReply: {
-              type: Type.STRING,
-              description: "उपयोगकर्ता के लिए संक्षेप में बातचीत उत्तर (हिंदी में), जिसमें बताया गया हो कि क्या आदेश तैयार किया गया है।",
-            },
-            orderDraft: {
-              type: Type.OBJECT,
-              description: "तैयार किया गया शुद्ध शासकीय कार्यालयीन आदेश",
-              properties: {
-                subject: {
-                  type: Type.STRING,
-                  description: "कार्यालयीन आदेश का विषय (जैसे: 'संकुल स्तरीय त्रैमासिक परीक्षा वीक्षक ड्यूटी बाबत')",
-                },
-                reference: {
-                  type: Type.STRING,
-                  description: "कार्यालयीन संदर्भ (जैसे: 'कार्यालय जिला शिक्षा अधिकारी का पत्र क्र./गोपनीय/2026/...')"
-                },
-                orderType: {
-                  type: Type.STRING,
-                  description: "आदेश का प्रकार: 'duty' | 'meeting' | 'training' | 'general' | 'notice'",
-                },
-                content: {
-                  type: Type.STRING,
-                  description: "आदेश का पूर्ण मुख्य विवरण एवं निर्देश (शुद्ध शासकीय हिंदी में)।",
-                },
-                includeDeputedSchool: {
-                  type: Type.BOOLEAN,
-                  description: "क्या यह परीक्षा या अन्य शाला प्रतिनियुक्ति आदेश है जिसमें प्रतिनियुक्त विद्यालय कॉलम होना चाहिए",
-                },
-                selectedTeachers: {
-                  type: Type.ARRAY,
-                  description: "आदेश में शामिल किए गए शिक्षक (उपलब्ध शिक्षकों में से मेल खाते हुए या नए)",
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      id: { type: Type.STRING },
-                      name: { type: Type.STRING },
-                      designation: { type: Type.STRING },
-                      schoolName: { type: Type.STRING },
-                      deputedSchool: { type: Type.STRING, description: "यदि परीक्षा/प्रतिनियुक्ति है तो आवंटित शाला" },
-                      assignedDutyRole: { type: Type.STRING, description: "आवंटित दायित्व (उदा. वीक्षक / केंद्राध्यक्ष)" },
-                    },
-                    required: ["name", "designation", "schoolName"],
-                  },
-                },
-                meetingDate: { type: Type.STRING, description: "यदि बैठक/परीक्षा है तो दिनांक (उदा. 2026-03-25)" },
-                meetingTime: { type: Type.STRING, description: "समय (उदा. प्रातः 10:30 बजे)" },
-                meetingVenue: { type: Type.STRING, description: "स्थान (उदा. संकुल सभागार)" },
+    let responseText = "{}";
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: promptText,
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              assistantReply: {
+                type: Type.STRING,
+                description: "उपयोगकर्ता के लिए संक्षेप में बातचीत उत्तर (हिंदी में), जिसमें बताया गया हो कि क्या आदेश तैयार किया गया है।",
               },
-              required: ["subject", "orderType", "content", "selectedTeachers"],
+              orderDraft: {
+                type: Type.OBJECT,
+                description: "तैयार किया गया शुद्ध शासकीय कार्यालयीन आदेश",
+                properties: {
+                  subject: {
+                    type: Type.STRING,
+                    description: "कार्यालयीन आदेश का विषय (जैसे: 'संकुल स्तरीय त्रैमासिक परीक्षा वीक्षक ड्यूटी बाबत')",
+                  },
+                  reference: {
+                    type: Type.STRING,
+                    description: "कार्यालयीन संदर्भ (जैसे: 'कार्यालय जिला शिक्षा अधिकारी का पत्र क्र./गोपनीय/2026/...')"
+                  },
+                  orderType: {
+                    type: Type.STRING,
+                    description: "आदेश का प्रकार: 'duty' | 'meeting' | 'training' | 'general' | 'notice'",
+                  },
+                  content: {
+                    type: Type.STRING,
+                    description: "आदेश का पूर्ण मुख्य विवरण एवं निर्देश (शुद्ध शासकीय हिंदी में)।",
+                  },
+                  includeDeputedSchool: {
+                    type: Type.BOOLEAN,
+                    description: "क्या यह परीक्षा या अन्य शाला प्रतिनियुक्ति आदेश है जिसमें प्रतिनियुक्त विद्यालय कॉलम होना चाहिए",
+                  },
+                  selectedTeachers: {
+                    type: Type.ARRAY,
+                    description: "आदेश में शामिल किए गए शिक्षक (उपलब्ध शिक्षकों में से मेल खाते हुए या नए)",
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        id: { type: Type.STRING },
+                        name: { type: Type.STRING },
+                        designation: { type: Type.STRING },
+                        schoolName: { type: Type.STRING },
+                        deputedSchool: { type: Type.STRING, description: "यदि परीक्षा/प्रतिनियुक्ति है तो आवंटित शाला" },
+                        assignedDutyRole: { type: Type.STRING, description: "आवंटित दायित्व (उदा. वीक्षक / केंद्राध्यक्ष)" },
+                      },
+                      required: ["name", "designation", "schoolName"],
+                    },
+                  },
+                  meetingDate: { type: Type.STRING, description: "यदि बैठक/परीक्षा है तो दिनांक (उदा. 2026-03-25)" },
+                  meetingTime: { type: Type.STRING, description: "समय (उदा. प्रातः 10:30 बजे)" },
+                  meetingVenue: { type: Type.STRING, description: "स्थान (उदा. संकुल सभागार)" },
+                },
+                required: ["subject", "orderType", "content", "selectedTeachers"],
+              },
             },
+            required: ["assistantReply", "orderDraft"],
           },
-          required: ["assistantReply", "orderDraft"],
         },
-      },
-    });
-
-    const responseText = response.text || "{}";
+      });
+      responseText = response.text || "{}";
+    } catch (modelErr) {
+      console.warn("Retrying with gemini-2.5-flash fallback:", modelErr);
+      const fallbackResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: promptText,
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+          responseMimeType: "application/json",
+        },
+      });
+      responseText = fallbackResponse.text || "{}";
+    }
     const resultJson = JSON.parse(responseText);
 
     res.json(resultJson);

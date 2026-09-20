@@ -195,45 +195,49 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
       </div>
 
       {/* Subject & Reference Section */}
-      <div 
-        className="subject-reference-block space-y-2 mb-5 text-sm md:text-[15px] leading-relaxed"
-        style={{ marginBottom: '18px', fontSize: '14.5px', lineHeight: 1.6 }}
-      >
+      {(order.subject || order.reference) && (
         <div 
-          className="flex items-start"
-          style={{ display: 'flex', alignItems: 'flex-start' }}
+          className="subject-reference-block space-y-2 mb-5 text-sm md:text-[15px] leading-relaxed"
+          style={{ marginBottom: '18px', fontSize: '14.5px', lineHeight: 1.6 }}
         >
-          <span 
-            className="font-bold text-slate-950 shrink-0"
-            style={{ fontWeight: 'bold', color: '#020617', minWidth: '65px', display: 'inline-block' }}
-          >
-            विषय :
-          </span>
-          <span 
-            className="font-bold text-slate-950 underline decoration-slate-400 underline-offset-4"
-            style={{ fontWeight: 'bold', color: '#020617', textDecoration: 'underline', textUnderlineOffset: '4px' }}
-          >
-            {order.subject || 'शिक्षकों के संबंध में आवश्यक दायित्व एवं निर्देश बाबत।'}
-          </span>
-        </div>
-
-        {order.reference && (
-          <div 
-            className="flex items-start text-xs md:text-sm text-slate-800"
-            style={{ display: 'flex', alignItems: 'flex-start', fontSize: '13px', color: '#1e293b', marginTop: '4px' }}
-          >
-            <span 
-              className="font-bold text-slate-900 shrink-0"
-              style={{ fontWeight: 'bold', color: '#0f172a', minWidth: '65px', display: 'inline-block' }}
+          {order.subject && (
+            <div 
+              className="flex items-start"
+              style={{ display: 'flex', alignItems: 'flex-start' }}
             >
-              प्रसंग :
-            </span>
-            <span style={{ color: '#334155' }}>
-              {order.reference}
-            </span>
-          </div>
-        )}
-      </div>
+              <span 
+                className="font-bold text-slate-950 shrink-0"
+                style={{ fontWeight: 'bold', color: '#020617', minWidth: '65px', display: 'inline-block' }}
+              >
+                विषय :
+              </span>
+              <span 
+                className="font-bold text-slate-950 underline decoration-slate-400 underline-offset-4"
+                style={{ fontWeight: 'bold', color: '#020617', textDecoration: 'underline', textUnderlineOffset: '4px' }}
+              >
+                {order.subject}
+              </span>
+            </div>
+          )}
+
+          {order.reference && (
+            <div 
+              className="flex items-start text-xs md:text-sm text-slate-800"
+              style={{ display: 'flex', alignItems: 'flex-start', fontSize: '13px', color: '#1e293b', marginTop: '4px' }}
+            >
+              <span 
+                className="font-bold text-slate-900 shrink-0"
+                style={{ fontWeight: 'bold', color: '#0f172a', minWidth: '65px', display: 'inline-block' }}
+              >
+                प्रसंग :
+              </span>
+              <span style={{ color: '#334155' }}>
+                {order.reference}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Order Body Text */}
       <div 
