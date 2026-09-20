@@ -259,6 +259,22 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
     setSelectedTeachers(prev => prev.filter(t => !schoolTeacherIds.has(t.id)));
   };
 
+  // Sync state when order is edited directly inside the official letter view
+  const handleUpdateOrderFromInline = (updated: OfficeOrder) => {
+    if (updated.subject !== undefined) setSubject(updated.subject);
+    if (updated.reference !== undefined) setReference(updated.reference);
+    if (updated.content !== undefined) setContent(updated.content);
+    if (updated.orderNumber !== undefined) setOrderNumber(updated.orderNumber);
+    if (updated.orderDate !== undefined) setOrderDate(updated.orderDate);
+    if (updated.meetingDate !== undefined) setMeetingDate(updated.meetingDate);
+    if (updated.meetingTime !== undefined) setMeetingTime(updated.meetingTime);
+    if (updated.meetingVenue !== undefined) setMeetingVenue(updated.meetingVenue);
+    if (updated.signatoryName !== undefined) setSignatoryName(updated.signatoryName);
+    if (updated.signatoryDesignation !== undefined) setSignatoryDesignation(updated.signatoryDesignation);
+    if (updated.selectedTeachers !== undefined) setSelectedTeachers(updated.selectedTeachers);
+    if (updated.copyTo !== undefined) setCopyTo(updated.copyTo);
+  };
+
   // Apply template
   const handleApplyTemplate = (templateId: string) => {
     const tmpl = ORDER_TEMPLATES.find(t => t.id === templateId);
@@ -1649,6 +1665,8 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
               profile={profile}
               id="official-letter-document"
               isPrintPreview={true}
+              allowInlineEdit={true}
+              onUpdateOrder={handleUpdateOrderFromInline}
             />
           </div>
         </div>

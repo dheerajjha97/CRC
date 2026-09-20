@@ -167,6 +167,15 @@ export default function App() {
     setOrders(prev => prev.filter(o => o.id !== id));
   };
 
+  const handleDirectUpdateOrder = async (id: string, updated: Partial<OfficeOrder>) => {
+    try {
+      await updateOrderInDb(id, updated);
+    } catch (err) {
+      console.error('Error directly updating order:', err);
+    }
+    setOrders(prev => prev.map(o => (o.id === id ? { ...o, ...updated } : o)));
+  };
+
   const handleEditOrder = (order: OfficeOrder) => {
     setEditingOrder(order);
     setActiveTab('create_order');
@@ -362,6 +371,7 @@ export default function App() {
                 profile={profile}
                 onEditOrder={handleEditOrder}
                 onDeleteOrder={handleDeleteOrder}
+                onUpdateOrder={handleDirectUpdateOrder}
                 onNavigateToCreate={() => setActiveTab('create_order')}
                 onNavigateToAi={() => setActiveTab('ai_assistant')}
               />

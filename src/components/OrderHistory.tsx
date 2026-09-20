@@ -36,6 +36,7 @@ interface OrderHistoryProps {
   profile: CrcProfile;
   onEditOrder: (order: OfficeOrder) => void;
   onDeleteOrder: (id: string) => Promise<void>;
+  onUpdateOrder?: (id: string, updated: Partial<OfficeOrder>) => Promise<void>;
   onNavigateToCreate?: () => void;
   onNavigateToAi?: () => void;
 }
@@ -45,6 +46,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
   profile,
   onEditOrder,
   onDeleteOrder,
+  onUpdateOrder,
   onNavigateToCreate,
   onNavigateToAi
 }) => {
@@ -693,6 +695,13 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
                 order={selectedPreviewOrder}
                 profile={profile}
                 id="history-modal-letter-document"
+                allowInlineEdit={true}
+                onUpdateOrder={async (updated) => {
+                  setSelectedPreviewOrder(updated);
+                  if (onUpdateOrder && updated.id) {
+                    await onUpdateOrder(updated.id, updated);
+                  }
+                }}
               />
             </div>
           </div>
