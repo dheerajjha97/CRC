@@ -1,0 +1,6 @@
+{
+  "name": "संकुल संसाधन केंद्र - आदेश एवं शिक्षक प्रबंधन",
+  "description": "संकुल संसाधन केंद्र (CRC) के अंतर्गत विद्यालयों एवं शिक्षकों के कार्यालयीन आदेश, पत्र निर्माण, शिक्षक प्रोफाइल प्रबंधन एवं पीडीएफ निर्यात प्रणाली।",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
