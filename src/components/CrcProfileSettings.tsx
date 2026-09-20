@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CrcProfile, ClusterSchool } from '../types';
 import { 
   Building2, 
@@ -10,8 +10,10 @@ import {
   UserCheck, 
   MapPin, 
   Mail, 
-  Phone 
+  Phone,
+  Tag
 } from 'lucide-react';
+import { DEFAULT_DESIGNATIONS } from './TeacherManagement';
 
 interface CrcProfileSettingsProps {
   profile: CrcProfile;
@@ -43,6 +45,45 @@ export const CrcProfileSettings: React.FC<CrcProfileSettingsProps> = ({
   const [schoolToDelete, setSchoolToDelete] = useState<ClusterSchool | null>(null);
   const [isDeletingSchool, setIsDeletingSchool] = useState(false);
   const [deleteSchoolMessage, setDeleteSchoolMessage] = useState<string | null>(null);
+
+  // Custom Designation Master State
+  const [designations, setDesignations] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('crc_designations_list');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return DEFAULT_DESIGNATIONS;
+  });
+  const [newDesigInput, setNewDesigInput] = useState('');
+  const [desigSuccessMsg, setDesigSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('crc_designations_list', JSON.stringify(designations));
+    } catch {
+      // ignore
+    }
+  }, [designations]);
+
+  const handleAddDesig = () => {
+    const val = newDesigInput.trim();
+    if (!val) return;
+    if (!designations.includes(val)) {
+      setDesignations(prev => [...prev, val]);
+      setDesigSuccessMsg(`पदनाम "${val}" सूची में जोड़ा गया!`);
+      setTimeout(() => setDesigSuccessMsg(null), 3000);
+    }
+    setNewDesigInput('');
+  };
+
+  const handleRemoveDesig = (d: string) => {
+    setDesignations(prev => prev.filter(item => item !== d));
+  };
 
   const handleSubmitProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -328,6 +369,99 @@ export const CrcProfileSettings: React.FC<CrcProfileSettingsProps> = ({
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Designation Master Section */}
+      <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <Tag className="w-6 h-6 text-indigo-600" />
+              संकुल पदनाम सूची मास्टर (Designation Master List)
+            </h2>
+            <p className="text-sm text-slate-600 mt-1">
+              यहाँ से आप अनावश्यक अथवा पुराने पदनाम हटा सकते हैं एवं नए कस्टम पदनाम जोड़ सकते हैं
+            </p>
+          </div>
+
+          {desigSuccessMsg && (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded-lg font-semibold">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              {desigSuccessMsg}
+            </div>
+          )}
+        </div>
+
+        {/* Add New Designation Input */}
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+          <label className="block text-xs font-bold text-slate-700 mb-2">
+            नया पदनाम जोड़ें (Add Custom Designation)
+          </label>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              id="settings-custom-desig-input"
+              type="text"
+              value={newDesigInput}
+              onChange={(e) => setNewDesigInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddDesig();
+                }
+              }}
+              placeholder="उदा. सहायक ग्रेड-3, प्रयोगशाला शिक्षक, भृत्य..."
+              className="flex-1 px-3.5 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"
+            />
+            <button
+              id="settings-add-desig-btn"
+              type="button"
+              onClick={handleAddDesig}
+              disabled={!newDesigInput.trim()}
+              className="inline-flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>पदनाम जोड़ें</span>
+            </button>
+          </div>
+        </div>
+
+        {/* List of Designations with quick delete */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              सक्रिय पदनाम ({designations.length})
+            </span>
+            <button
+              type="button"
+              onClick={() => setDesignations(DEFAULT_DESIGNATIONS)}
+              className="text-xs text-indigo-600 hover:text-indigo-800 font-medium underline cursor-pointer"
+            >
+              डिफ़ॉल्ट सूची पर रीसेट करें
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+            {designations.map((d, index) => (
+              <div
+                key={d}
+                className="flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <span className="text-xs text-slate-400 font-mono">{index + 1}.</span>
+                  <span className="text-sm font-medium text-slate-800 truncate">{d}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveDesig(d)}
+                  title="हटाएं"
+                  className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer shrink-0 ml-2"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
