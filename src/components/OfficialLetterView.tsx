@@ -122,16 +122,69 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
         </div>
       )}
 
-      {/* Teachers List Table with Designations, Deputed Schools and Assigned Roles */}
+      {/* Teachers List Table with Smart Column Management (Hides column if all teachers share same school or same duty) */}
       {order.selectedTeachers && order.selectedTeachers.length > 0 && (() => {
-        const showDeputedSchoolCol = order.includeDeputedSchool || 
-          order.selectedTeachers.some(t => Boolean(t.deputedSchool && t.deputedSchool.trim()));
+        // Compute unique deputed schools
+        const deputedSchools = Array.from(
+          new Set(order.selectedTeachers.map(t => (t.deputedSchool || '').trim()).filter(Boolean))
+        );
+        const hasAnyDeputedSchool = deputedSchools.length > 0;
+        const isSingleCommonDeputedSchool = hasAnyDeputedSchool && deputedSchools.length === 1 && 
+          order.selectedTeachers.every(t => (t.deputedSchool || '').trim() === deputedSchools[0]);
+        const commonDeputedSchoolName = isSingleCommonDeputedSchool ? deputedSchools[0] : null;
+
+        // Show Deputed School column ONLY if there are multiple DIFFERENT destination schools
+        const showDeputedSchoolColumn = hasAnyDeputedSchool && !isSingleCommonDeputedSchool;
+
+        // Compute unique duty roles
+        const dutyRoles = Array.from(
+          new Set(order.selectedTeachers.map(t => (t.assignedDutyRole || '').trim()).filter(Boolean))
+        );
+        const hasAnyDutyRole = dutyRoles.length > 0;
+        const isSingleCommonDuty = hasAnyDutyRole && dutyRoles.length === 1 &&
+          order.selectedTeachers.every(t => (t.assignedDutyRole || '').trim() === dutyRoles[0]);
+        const commonDutyName = isSingleCommonDuty ? dutyRoles[0] : null;
+
+        // Show Assigned Duty column ONLY if there are multiple DIFFERENT duties
+        const showDutyRoleColumn = hasAnyDutyRole && !isSingleCommonDuty;
 
         return (
           <div className="my-5">
-            <div className="text-xs md:text-sm font-bold text-slate-900 mb-2">
-              संबंधित आदेशित शिक्षकों की सूची :
+            {/* Table Header with contextual badges if common school/duty applies */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2.5">
+              <div className="text-xs md:text-sm font-bold text-slate-900">
+                संबंधित आदेशित शिक्षकों की सूची :
+              </div>
             </div>
+
+            {/* Common Deputed School or Common Duty Callout Badges */}
+            {(commonDeputedSchoolName || commonDutyName) && (
+              <div className="bg-slate-50 border border-slate-300 rounded-lg p-2.5 mb-3 text-xs md:text-[13px] space-y-1">
+                {commonDeputedSchoolName && (
+                  <div className="flex items-start gap-1.5 text-slate-900 font-medium">
+                    <span className="font-bold text-slate-800 shrink-0">प्रतिनियुक्त विद्यालय / परीक्षा केंद्र :</span>
+                    <span className="font-bold text-indigo-900 underline decoration-indigo-300 underline-offset-2">
+                      {commonDeputedSchoolName}
+                    </span>
+                    <span className="text-[11px] text-slate-500 italic ml-1">
+                      (उपरोक्त सभी शिक्षकों हेतु एक समान)
+                    </span>
+                  </div>
+                )}
+                {commonDutyName && (
+                  <div className="flex items-start gap-1.5 text-slate-900 font-medium">
+                    <span className="font-bold text-slate-800 shrink-0">सौंपा गया दायित्व / कार्य :</span>
+                    <span className="font-bold text-slate-950">
+                      {commonDutyName}
+                    </span>
+                    <span className="text-[11px] text-slate-500 italic ml-1">
+                      (उपरोक्त सभी शिक्षकों हेतु एक समान)
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-slate-400 text-xs md:text-sm text-left">
                 <thead>
@@ -140,14 +193,16 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
                     <th className="border border-slate-400 p-2">शिक्षक का नाम</th>
                     <th className="border border-slate-400 p-2">पदनाम</th>
                     <th className="border border-slate-400 p-2">
-                      {showDeputedSchoolCol ? 'मूल पदस्थापना विद्यालय' : 'पदस्थ विद्यालय'}
+                      {showDeputedSchoolColumn ? 'मूल पदस्थापना विद्यालय' : 'पदस्थ विद्यालय'}
                     </th>
-                    {showDeputedSchoolCol && (
+                    {showDeputedSchoolColumn && (
                       <th className="border border-slate-400 p-2 bg-indigo-50/50 text-indigo-950 font-bold">
                         प्रतिनियुक्त विद्यालय / परीक्षा केंद्र
                       </th>
                     )}
-                    <th className="border border-slate-400 p-2">आवंटित दायित्व / टिप्पणी</th>
+                    {showDutyRoleColumn && (
+                      <th className="border border-slate-400 p-2">आवंटित दायित्व / कार्य</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -159,14 +214,16 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
                       </td>
                       <td className="border border-slate-400 p-2 text-slate-800">{t.designation}</td>
                       <td className="border border-slate-400 p-2 text-slate-800">{t.schoolName}</td>
-                      {showDeputedSchoolCol && (
+                      {showDeputedSchoolColumn && (
                         <td className="border border-slate-400 p-2 font-semibold text-indigo-900 bg-indigo-50/30">
                           {t.deputedSchool || '— (मूल शाला)'}
                         </td>
                       )}
-                      <td className="border border-slate-400 p-2 font-medium text-slate-900">
-                        {t.assignedDutyRole || 'उपस्थिति / दायित्व निर्वहन'}
-                      </td>
+                      {showDutyRoleColumn && (
+                        <td className="border border-slate-400 p-2 font-medium text-slate-900">
+                          {t.assignedDutyRole || 'उपस्थिति / दायित्व निर्वहन'}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -203,40 +260,54 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
       </div>
 
       {/* Dispatch Copy To / प्रतिलिपि Section */}
-      <div className="mt-8 pt-4 border-t border-slate-300 text-xs md:text-[13px] text-slate-800">
-        <div className="flex justify-between items-center mb-1">
-          <span className="font-bold">
-            पृ. क्रमांक / सं.सं.के. / प्रतिलिपि / 2026 /
-          </span>
-          <span>दिनांक : {formattedDate}</span>
-        </div>
-        <p className="font-semibold text-slate-900 mb-1">
-          प्रतिलिपि सूचनार्थ एवं आवश्यक कार्रवाई हेतु प्रेषित :
-        </p>
-        <ol className="list-decimal list-inside space-y-0.5 text-slate-700 pl-1">
-          <li>जिला शिक्षा अधिकारी, जिला - {profile.districtName || 'रायपुर'}</li>
-          <li>विकासखंड शिक्षा अधिकारी (BEO), विकासखंड - {profile.blockName || 'सदर'}</li>
-          <li>विकासखंड स्रोत समन्वयक (BRCC), विकासखंड - {profile.blockName || 'सदर'}</li>
-          <li>संबंधित प्रधान पाठक / प्राचार्य, सर्व संबंधित विद्यालय की ओर सूचना एवं पालनार्थ।</li>
-          <li>सर्व संबंधित शिक्षक, पालनार्थ।</li>
-          <li>कार्यालयीन संचिका / आदेश नस्ती (Guard File)।</li>
-          {order.copyTo && order.copyTo.map((cp, i) => (
-            <li key={i}>{cp}</li>
-          ))}
-        </ol>
+      {(() => {
+        // If order.copyTo is provided as array, use it (if empty [], hide section). If undefined, fallback to default.
+        const defaultCopies = [
+          `जिला शिक्षा अधिकारी, जिला - ${profile.districtName || 'रायपुर'} की ओर सादर सूचनार्थ।`,
+          `विकासखंड शिक्षा अधिकारी (BEO), विकासखंड - ${profile.blockName || 'सदर'} की ओर सादर सूचनार्थ।`,
+          `विकासखंड स्रोत समन्वयक (BRCC), विकासखंड - ${profile.blockName || 'सदर'} की ओर सूचनार्थ।`,
+          `संबंधित प्रधान पाठक / प्राचार्य, सर्व संबंधित विद्यालय की ओर सूचना एवं पालनार्थ।`,
+          `सर्व संबंधित शिक्षक, पालनार्थ।`,
+          `कार्यालयीन संचिका / आदेश नस्ती (Guard File)।`
+        ];
 
-        {/* Secondary Signatory for Endorsement / प्रतिलिपि */}
-        <div className="mt-6 flex justify-end">
-          <div className="text-center min-w-[200px]">
-            <div className="border-t border-slate-300 pt-1 text-xs font-bold text-slate-800">
-              संकुल समन्वयक / प्राचार्य
+        const copyToList = order.copyTo !== undefined ? order.copyTo : defaultCopies;
+
+        if (!copyToList || copyToList.length === 0) {
+          return null;
+        }
+
+        return (
+          <div className="mt-8 pt-4 border-t border-slate-300 text-xs md:text-[13px] text-slate-800">
+            <div className="flex justify-between items-center mb-1">
+              <span className="font-bold">
+                पृ. क्रमांक / सं.सं.के. / प्रतिलिपि / 2026 /
+              </span>
+              <span>दिनांक : {formattedDate}</span>
             </div>
-            <div className="text-[11px] text-slate-600">
-              {profile.clusterName}
+            <p className="font-semibold text-slate-900 mb-1">
+              प्रतिलिपि सूचनार्थ एवं आवश्यक कार्रवाई हेतु प्रेषित :
+            </p>
+            <ol className="list-decimal list-inside space-y-0.5 text-slate-700 pl-1">
+              {copyToList.map((cp, i) => (
+                <li key={i} className="leading-relaxed">{cp}</li>
+              ))}
+            </ol>
+
+            {/* Secondary Signatory for Endorsement / प्रतिलिपि */}
+            <div className="mt-6 flex justify-end">
+              <div className="text-center min-w-[200px]">
+                <div className="border-t border-slate-300 pt-1 text-xs font-bold text-slate-800">
+                  {order.signatoryDesignation || profile.defaultDesignation || 'संकुल समन्वयक / प्राचार्य'}
+                </div>
+                <div className="text-[11px] text-slate-600">
+                  {profile.clusterName}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
     </div>
   );
 };
