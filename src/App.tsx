@@ -117,6 +117,18 @@ export function App() {
     setActiveTab('create_order');
   };
 
+  const handleCloneOrder = (order: OfficeOrder) => {
+    const cloned: OfficeOrder = {
+      ...order,
+      id: undefined, // ensure it's treated as a new draft
+      orderNumber: '', // let OrderGenerator auto-assign next order number
+      orderDate: new Date().toISOString().split('T')[0],
+      status: 'draft'
+    };
+    setEditingOrder(cloned);
+    setActiveTab('create_order');
+  };
+
   // Teacher Handlers
   const handleAddTeacher = async (tData: Omit<Teacher, 'id'>) => {
     const newId = await addTeacherToDb(tData);
@@ -314,6 +326,7 @@ export function App() {
                 orders={orders}
                 profile={profile}
                 onEditOrder={handleEditOrder}
+                onCloneOrder={handleCloneOrder}
                 onDeleteOrder={handleDeleteOrder}
                 onUpdateOrder={handleDirectUpdateOrder}
                 onUpdateProfile={handleSaveProfile}

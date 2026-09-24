@@ -17,13 +17,15 @@ import {
   X,
   FileSpreadsheet,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Copy
 } from 'lucide-react';
 
 interface OrderHistoryProps {
   orders: OfficeOrder[];
   profile: CrcProfile;
   onEditOrder: (order: OfficeOrder) => void;
+  onCloneOrder?: (order: OfficeOrder) => void;
   onDeleteOrder: (id: string) => Promise<void>;
   onUpdateOrder?: (id: string, updated: Partial<OfficeOrder>) => Promise<void>;
   onUpdateProfile?: (updatedProfile: CrcProfile) => Promise<void>;
@@ -37,6 +39,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
   orders,
   profile,
   onEditOrder,
+  onCloneOrder,
   onDeleteOrder,
   onUpdateOrder,
   onUpdateProfile,
@@ -49,6 +52,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'draft' | 'final'>('all');
   const [selectedPreviewOrder, setSelectedPreviewOrder] = useState<OfficeOrder | null>(null);
+  const [isDownloadingModalPdf, setIsDownloadingModalPdf] = useState(false);
 
   // Count drafts and finals
   const draftCount = orders.filter(o => o.status === 'draft').length;
@@ -81,6 +85,19 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
     });
   };
 
+  const handleDownloadModalPdf = async () => {
+    if (!selectedPreviewOrder) return;
+    setIsDownloadingModalPdf(true);
+    try {
+      const cleanName = selectedPreviewOrder.subject ? selectedPreviewOrder.subject.substring(0, 30).replace(/[^a-zA-Z0-9\u0900-\u097F]/g, '_') : 'Aadesh';
+      await downloadOrderAsPdf('history-modal-letter-document', `${selectedPreviewOrder.orderNumber || 'CRC_Order'}_${cleanName}.pdf`);
+    } catch (err) {
+      console.error('Download error:', err);
+    } finally {
+      setIsDownloadingModalPdf(false);
+    }
+  };
+
   const handleDownloadSinglePdf = async (order: OfficeOrder) => {
     setSelectedPreviewOrder(order);
     setTimeout(async () => {
@@ -90,7 +107,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
       } catch (err) {
         console.error('Download error:', err);
       }
-    }, 200);
+    }, 250);
   };
 
   const handlePrintSingle = (order: OfficeOrder) => {
@@ -363,6 +380,17 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
                           <Edit3 className="w-4 h-4" />
                         </button>
 
+                        {onCloneOrder && (
+                          <button
+                            type="button"
+                            onClick={() => onCloneOrder(order)}
+                            className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer"
+                            title="इस आदेश की प्रतिलिपि बनाकर नया ड्राफ्ट बनाएं (Duplicate / Copy as New Draft)"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => handleDownloadSinglePdf(order)}
@@ -420,13 +448,40 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                {onCloneOrder && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const toClone = selectedPreviewOrder;
+                      setSelectedPreviewOrder(null);
+                      onCloneOrder(toClone);
+                    }}
+                    className="inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                    title="इस आदेश की सामग्री से नया ड्राफ्ट बनाएं"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>कॉपी / नया ड्राफ्ट</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  onClick={() => downloadOrderAsPdf('history-modal-letter-document', `${selectedPreviewOrder.orderNumber || 'Order'}.pdf`)}
-                  className="inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                  onClick={handleDownloadModalPdf}
+                  disabled={isDownloadingModalPdf}
+                  className="inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-60"
+                  title="A4 PDF डाउनलोड करें"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>PDF</span>
+                  {isDownloadingModalPdf ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5" />
+                      <span>PDF (A4)</span>
+                    </>
+                  )}
                 </button>
 
                 <button

@@ -2,66 +2,134 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 /**
- * Downloads the official letter document as a high-resolution A4 PDF.
+ * Downloads the official letter document as a high-resolution, perfectly-formatted A4 PDF.
  */
 export async function downloadOrderAsPdf(elementId: string, filename: string = 'Office_Order.pdf'): Promise<void> {
   const element = document.getElementById(elementId);
   if (!element) {
-    throw new Error(`Letter document element #${elementId} not found`);
+    console.error(`Letter document element #${elementId} not found`);
+    throw new Error(`दस्तावेज़ नहीं मिला (#${elementId})`);
   }
 
-  // Ensure any active input fields are blurred and temporary editing borders are suppressed
+  // Ensure any active input fields are blurred
   const activeInput = document.activeElement as HTMLElement;
   if (activeInput && typeof activeInput.blur === 'function') {
     activeInput.blur();
   }
 
-  // High-resolution canvas render
-  const canvas = await html2canvas(element, {
-    scale: 2.2, // Crisp Devanagari typography render
-    useCORS: true,
-    logging: false,
-    backgroundColor: '#ffffff',
-    windowWidth: element.scrollWidth,
-    windowHeight: element.scrollHeight,
-    ignoreElements: (el) => {
-      // Ignore UI buttons, pickers, or helper badges when rendering PDF
-      return (
-        el.classList.contains('print:hidden') ||
-        el.classList.contains('print-hidden') ||
-        el.getAttribute('data-ignore-print') === 'true'
-      );
-    }
-  });
-
-  const imgData = canvas.toDataURL('image/jpeg', 0.98);
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4'
-  });
-
-  const pageWidth = 210; // A4 width in mm
-  const pageHeight = 297; // A4 height in mm
-  const imgHeight = (canvas.height * pageWidth) / canvas.width;
+  // Create an off-screen clone with exact A4 portrait dimensions
+  const clone = element.cloneNode(true) as HTMLElement;
+  clone.id = 'temp-pdf-render-clone';
   
-  let heightLeft = imgHeight;
-  let position = 0;
+  // Remove interactive UI buttons, inputs, edit toolbars from clone
+  const unwantedElements = clone.querySelectorAll(
+    '.print\\:hidden, .print-hidden, [data-ignore-print="true"], button, select, input[type="file"], textarea, #btn-toggle-inline-edit'
+  );
+  unwantedElements.forEach(el => el.remove());
 
-  // First page
-  pdf.addImage(imgData, 'JPEG', 0, position, pageWidth, imgHeight, undefined, 'FAST');
-  heightLeft -= pageHeight;
+  // Set pristine A4 styling on clone (794px corresponds to 210mm at 96 DPI)
+  clone.style.width = '794px';
+  clone.style.maxWidth = '794px';
+  clone.style.minHeight = '1123px'; // A4 height at 96 DPI
+  clone.style.boxShadow = 'none';
+  clone.style.border = 'none';
+  clone.style.borderRadius = '0';
+  clone.style.margin = '0';
+  clone.style.padding = '36px 44px';
+  clone.style.backgroundColor = '#ffffff';
+  clone.style.color = '#0f172a';
+  clone.style.fontFamily = "'Mukta', 'Noto Sans Devanagari', sans-serif";
+  clone.style.position = 'fixed';
+  clone.style.left = '-99999px';
+  clone.style.top = '0';
+  clone.style.zIndex = '-99999';
+  clone.style.visibility = 'visible';
+  clone.style.opacity = '1';
 
-  // Multi-page handling for lengthy orders with extensive teacher tables
-  while (heightLeft > 5) { // 5mm threshold to avoid blank trailing page
-    position = heightLeft - imgHeight;
-    pdf.addPage();
-    pdf.addImage(imgData, 'JPEG', 0, position, pageWidth, imgHeight, undefined, 'FAST');
-    heightLeft -= pageHeight;
+  document.body.appendChild(clone);
+
+  try {
+    // Wait slightly for fonts and images to be ready
+    await new Promise(r => setTimeout(r, 100));
+
+    const canvas = await html2canvas(clone, {
+      scale: 2.0, // High-DPI crisp Devanagari text
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      width: 794,
+      windowWidth: 794
+    });
+
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    });
+
+    const pageWidth = 210; // A4 mm
+    const pageHeight = 297; // A4 mm
+    const pageCanvasHeight = Math.floor((canvas.width * pageHeight) / pageWidth);
+    
+    // Check total height in mm
+    const totalMmHeight = (canvas.height * pageWidth) / canvas.width;
+
+    if (totalMmHeight <= pageHeight + 4) {
+      // 1-Page Letter (Standard CRC Office Order)
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      const renderHeight = Math.min(totalMmHeight, pageHeight);
+      pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, renderHeight, undefined, 'FAST');
+    } else {
+      // Multi-Page Letter: Clean Page-by-Page Canvas Slicing
+      let renderedHeight = 0;
+      let pageIndex = 0;
+
+      while (renderedHeight < canvas.height - 20) {
+        if (pageIndex > 0) {
+          pdf.addPage('a4', 'portrait');
+        }
+
+        const chunkHeight = Math.min(pageCanvasHeight, canvas.height - renderedHeight);
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = chunkHeight;
+        
+        const ctx = pageCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+          ctx.drawImage(
+            canvas,
+            0, renderedHeight, canvas.width, chunkHeight,
+            0, 0, canvas.width, chunkHeight
+          );
+
+          const chunkData = pageCanvas.toDataURL('image/png', 1.0);
+          const chunkMmHeight = (chunkHeight * pageWidth) / canvas.width;
+          pdf.addImage(chunkData, 'PNG', 0, 0, pageWidth, chunkMmHeight, undefined, 'FAST');
+        }
+
+        renderedHeight += pageCanvasHeight;
+        pageIndex++;
+      }
+    }
+
+    // Clean filename
+    const cleanFilename = (filename || 'Office_Order.pdf')
+      .replace(/[\/\\?%*:|"<>]/g, '_')
+      .replace(/\s+/g, '_')
+      .trim();
+    const finalFilename = cleanFilename.endsWith('.pdf') ? cleanFilename : `${cleanFilename}.pdf`;
+
+    pdf.save(finalFilename);
+  } finally {
+    // Clean up temporary DOM clone
+    if (document.body.contains(clone)) {
+      document.body.removeChild(clone);
+    }
   }
-
-  const safeFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
-  pdf.save(safeFilename);
 }
 
 /**

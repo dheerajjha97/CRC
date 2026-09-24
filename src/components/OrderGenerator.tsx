@@ -31,7 +31,9 @@ import {
   Table as TableIcon,
   Layers,
   Sparkles,
-  LayoutTemplate
+  LayoutTemplate,
+  Copy,
+  RefreshCw
 } from 'lucide-react';
 
 interface OrderGeneratorProps {
@@ -109,9 +111,12 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
   const [copyTo, setCopyTo] = useState<string[]>([]);
 
   // UI state
+  const [editingOrderId, setEditingOrderId] = useState<string | undefined>(initialOrder?.id);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [saveToast, setSaveToast] = useState(false);
   const [draftSavedToast, setDraftSavedToast] = useState(false);
+  const [clonedToast, setClonedToast] = useState(false);
   const [teacherSearch, setTeacherSearch] = useState('');
   const [selectedSchoolFilter, setSelectedSchoolFilter] = useState('');
   const [bulkDeputedSchool, setBulkDeputedSchool] = useState('');
@@ -120,6 +125,7 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
   // Auto initialize default values or populate initialOrder
   useEffect(() => {
     if (initialOrder) {
+      setEditingOrderId(initialOrder.id);
       setOrderNumber(initialOrder.orderNumber);
       setOrderDate(initialOrder.orderDate || new Date().toISOString().split('T')[0]);
       setSubject(initialOrder.subject || '');
@@ -416,7 +422,7 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
       };
 
       setOrderStatus(saveStatus);
-      await onSaveOrder(orderPayload, initialOrder?.id);
+      await onSaveOrder(orderPayload, editingOrderId);
       if (!silent) {
         if (saveStatus === 'draft') {
           setDraftSavedToast(true);
@@ -433,7 +439,46 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
     }
   };
 
+  // Duplicate current order contents to a fresh new draft with next order number
+  const handleDuplicateCurrentOrder = () => {
+    const nextNum = generateNextOrderNumber(profile.letterPrefix || 'क्र./सं.सं.के./2026/', savedOrders);
+    setOrderNumber(nextNum);
+    setOrderDate(new Date().toISOString().split('T')[0]);
+    setOrderStatus('draft');
+    setEditingOrderId(undefined); // decouple from existing record to save as a brand new draft
+    setClonedToast(true);
+    setTimeout(() => setClonedToast(false), 4500);
+  };
+
+  // Clone from a previously saved order
+  const handleCopyFromPastOrder = (pastOrder: OfficeOrder) => {
+    setSubject(pastOrder.subject || '');
+    setReference(pastOrder.reference || '');
+    setContent(pastOrder.content || '');
+    setOrderType(pastOrder.orderType || 'meeting');
+    setTableMode(pastOrder.tableMode || (pastOrder.customTable ? 'custom' : (pastOrder.selectedTeachers && pastOrder.selectedTeachers.length > 0 ? 'teachers' : 'none')));
+    if (pastOrder.customTable) setCustomTable(pastOrder.customTable);
+    if (pastOrder.selectedTeachers) setSelectedTeachers(pastOrder.selectedTeachers);
+    if (pastOrder.meetingDate) setMeetingDate(pastOrder.meetingDate);
+    if (pastOrder.meetingTime) setMeetingTime(pastOrder.meetingTime);
+    if (pastOrder.meetingVenue) setMeetingVenue(pastOrder.meetingVenue);
+    if (pastOrder.signatoryName) setSignatoryName(pastOrder.signatoryName);
+    if (pastOrder.signatoryDesignation) setSignatoryDesignation(pastOrder.signatoryDesignation);
+    if (pastOrder.copyTo) setCopyTo(pastOrder.copyTo);
+    if (pastOrder.complianceNote !== undefined) setComplianceNote(pastOrder.complianceNote);
+    if (pastOrder.showComplianceNote !== undefined) setShowComplianceNote(pastOrder.showComplianceNote);
+    
+    const nextNum = generateNextOrderNumber(profile.letterPrefix || 'क्र./सं.सं.के./2026/', savedOrders);
+    setOrderNumber(nextNum);
+    setOrderDate(new Date().toISOString().split('T')[0]);
+    setOrderStatus('draft');
+    setEditingOrderId(undefined);
+    setClonedToast(true);
+    setTimeout(() => setClonedToast(false), 4500);
+  };
+
   const handleDownloadPdf = async () => {
+    setIsDownloadingPdf(true);
     try {
       // Auto-save to ensure letter is logged in Jawak Panji
       await handleSave('final', true);
@@ -443,6 +488,8 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
       setTimeout(() => setSaveToast(false), 4000);
     } catch (err) {
       console.error('PDF error:', err);
+    } finally {
+      setIsDownloadingPdf(false);
     }
   };
 
@@ -459,7 +506,7 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
   };
 
   const currentConstructedOrder: OfficeOrder = {
-    id: initialOrder?.id,
+    id: editingOrderId,
     orderNumber,
     orderDate,
     subject,
@@ -521,7 +568,14 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-2">
+          {clonedToast && (
+            <div className="flex items-center gap-2 bg-purple-50 text-purple-900 border border-purple-300 px-3 py-1.5 rounded-xl text-xs font-semibold animate-in fade-in shadow-xs">
+              <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
+              <span>📋 आदेश की प्रतिलिपि तैयार! नया पत्र क्रमांक आवंटित हुआ।</span>
+            </div>
+          )}
+
           {draftSavedToast && (
             <div className="flex items-center gap-2 bg-amber-50 text-amber-900 border border-amber-300 px-3 py-1.5 rounded-xl text-xs font-semibold animate-in fade-in shadow-xs">
               <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
@@ -554,6 +608,17 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
             </div>
           )}
 
+          {/* Duplicate to New Draft button */}
+          <button
+            type="button"
+            onClick={handleDuplicateCurrentOrder}
+            className="inline-flex items-center gap-1.5 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 hover:border-purple-400 text-xs font-bold px-3 py-2 rounded-xl transition-all cursor-pointer shadow-xs"
+            title="इस आदेश की पूरी सामग्री को एक नए ड्राफ्ट में डुप्लीकेट करें (Duplicate into New Draft)"
+          >
+            <Copy className="w-3.5 h-3.5 text-purple-600" />
+            <span>📋 कॉपी / नया ड्राफ्ट</span>
+          </button>
+
           {/* Save as Draft button */}
           <button
             type="button"
@@ -581,10 +646,21 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
           <button
             type="button"
             onClick={handleDownloadPdf}
-            className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-xs"
+            disabled={isDownloadingPdf || isSaving}
+            className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-60"
+            title="दस्तावेज़ को स्पष्ट A4 PDF में डाउनलोड करें"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>PDF डाउनलोड</span>
+            {isDownloadingPdf ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>PDF बन रहा है...</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5" />
+                <span>PDF डाउनलोड (A4)</span>
+              </>
+            )}
           </button>
 
           <button
@@ -631,6 +707,40 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
                 </button>
               ))}
             </div>
+
+            {savedOrders && savedOrders.length > 0 && (
+              <div className="pt-2.5 border-t border-slate-100 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                    <Copy className="w-3 h-3 text-purple-600" />
+                    पूर्व जावक आदेश से सामग्री कॉपी करें:
+                  </span>
+                  <span className="text-[10px] text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded font-medium">
+                    डुप्लीकेट
+                  </span>
+                </div>
+                <select
+                  onChange={(e) => {
+                    const orderId = e.target.value;
+                    if (!orderId) return;
+                    const found = savedOrders.find(o => o.id === orderId);
+                    if (found) {
+                      handleCopyFromPastOrder(found);
+                    }
+                    e.target.value = '';
+                  }}
+                  defaultValue=""
+                  className="w-full text-xs bg-slate-50 hover:bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:bg-white focus:border-purple-400 focus:outline-none cursor-pointer transition-colors"
+                >
+                  <option value="">— पिछले किसी आदेश को कॉपी करने हेतु चुनें —</option>
+                  {savedOrders.map((ord) => (
+                    <option key={ord.id || ord.orderNumber} value={ord.id}>
+                      {ord.orderNumber || 'क्रमांक रहित'} - {(ord.subject || 'बिना विषय').substring(0, 45)}... ({ord.orderDate || ''})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Optional Collapsible Letterhead / Header Customization Card */}
