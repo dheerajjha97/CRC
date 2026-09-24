@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { OfficeOrder, CrcProfile, SelectedTeacherInOrder, CustomTableData } from '../types';
 import { BiharEducationLogo } from './BiharEducationLogo';
+import { MsWordEditor } from './MsWordEditor';
 import { 
   Edit3, 
   Check, 
@@ -782,30 +783,33 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
         <div className="mb-5" style={{ marginBottom: '18px' }}>
           {isEditing ? (
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-amber-900">
-                मुख्य आदेश विवरण (Order Body Content) :
+              <label className="block text-[11px] font-bold text-amber-900 mb-1">
+                मुख्य आदेश विवरण (MS Word Style Order Body Content) :
               </label>
-              <textarea
+              <MsWordEditor
                 value={activeOrder.content || ''}
-                onChange={(e) => handleFieldChange('content', e.target.value)}
-                rows={6}
-                placeholder="मुख्य आदेश का शासकीय विवरण यहाँ लिखें..."
-                className="w-full p-2.5 border border-amber-400 bg-amber-50 rounded text-sm leading-relaxed text-slate-900 focus:ring-1 focus:ring-amber-500 font-['Mukta',sans-serif] resize-y"
+                onChange={(val) => handleFieldChange('content', val)}
+                minHeight="220px"
+                label="वर्ड एडिटर (Letter Body)"
+                placeholder="शासकीय आदेश का मुख्य विवरण यहाँ MS Word की तरह टाइप व फॉर्मेट करें..."
               />
             </div>
           ) : (
             <div 
-              className="order-body-content text-sm md:text-[15px] leading-relaxed text-justify text-slate-900 whitespace-pre-line"
+              className="order-body-content text-sm md:text-[15px] leading-relaxed text-justify text-slate-900 prose max-w-none [&>p]:mb-3 [&>p]:text-justify [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5"
               style={{ 
                 fontSize: '14.5px', 
                 lineHeight: '1.75', 
                 textAlign: 'justify', 
                 textJustify: 'inter-word',
-                color: '#0f172a', 
-                whiteSpace: 'pre-line' 
+                color: '#0f172a'
               }}
             >
-              {activeOrder.content}
+              {/<[a-z][\s\S]*>/i.test(activeOrder.content || '') ? (
+                <div dangerouslySetInnerHTML={{ __html: activeOrder.content || '' }} />
+              ) : (
+                <div style={{ whiteSpace: 'pre-line' }}>{activeOrder.content}</div>
+              )}
             </div>
           )}
         </div>
