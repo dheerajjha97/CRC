@@ -40,6 +40,7 @@ interface OrderGeneratorProps {
   savedOrders: OfficeOrder[];
   initialOrder?: OfficeOrder | null;
   onSaveOrder: (order: Omit<OfficeOrder, 'id'>, existingId?: string) => Promise<void>;
+  onUpdateProfile?: (updatedProfile: CrcProfile) => Promise<void>;
   onNavigateToHistory?: () => void;
 }
 
@@ -50,6 +51,7 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
   savedOrders,
   initialOrder,
   onSaveOrder,
+  onUpdateProfile,
   onNavigateToHistory
 }) => {
   // Form States
@@ -71,6 +73,19 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
       ['3', 'कक्षा 8', 'विज्ञान', '28/09/2026', '01:30 PM - 04:00 PM', 'द्वितीय पाली']
     ]
   });
+
+  // Header Customization States (Order-level override)
+  const [headerOfficeTitle, setHeaderOfficeTitle] = useState<string | undefined>(undefined);
+  const [headerClusterName, setHeaderClusterName] = useState<string | undefined>(undefined);
+  const [headerBlock, setHeaderBlock] = useState<string | undefined>(undefined);
+  const [headerDistrict, setHeaderDistrict] = useState<string | undefined>(undefined);
+  const [headerState, setHeaderState] = useState<string | undefined>(undefined);
+  const [headerAddress, setHeaderAddress] = useState<string | undefined>(undefined);
+  const [headerPhone, setHeaderPhone] = useState<string | undefined>(undefined);
+  const [headerEmail, setHeaderEmail] = useState<string | undefined>(undefined);
+  const [headerLogoVariant, setHeaderLogoVariant] = useState<OfficeOrder['headerLogoVariant']>(undefined);
+  const [headerLogoUrl, setHeaderLogoUrl] = useState<string | undefined>(undefined);
+  const [showHeaderSettings, setShowHeaderSettings] = useState(false);
 
   // Meeting details
   const [meetingDate, setMeetingDate] = useState('');
@@ -108,6 +123,16 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
       if (initialOrder.customTable) {
         setCustomTable(initialOrder.customTable);
       }
+      setHeaderOfficeTitle(initialOrder.headerOfficeTitle);
+      setHeaderClusterName(initialOrder.headerClusterName);
+      setHeaderBlock(initialOrder.headerBlock);
+      setHeaderDistrict(initialOrder.headerDistrict);
+      setHeaderState(initialOrder.headerState);
+      setHeaderAddress(initialOrder.headerAddress);
+      setHeaderPhone(initialOrder.headerPhone);
+      setHeaderEmail(initialOrder.headerEmail);
+      setHeaderLogoVariant(initialOrder.headerLogoVariant);
+      setHeaderLogoUrl(initialOrder.headerLogoUrl);
       setMeetingDate(initialOrder.meetingDate || '');
       setMeetingTime(initialOrder.meetingTime || '');
       setMeetingVenue(initialOrder.meetingVenue || '');
@@ -327,6 +352,16 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
     if (updated.signatoryDesignation !== undefined) setSignatoryDesignation(updated.signatoryDesignation);
     if (updated.selectedTeachers !== undefined) setSelectedTeachers(updated.selectedTeachers);
     if (updated.copyTo !== undefined) setCopyTo(updated.copyTo);
+    if (updated.headerOfficeTitle !== undefined) setHeaderOfficeTitle(updated.headerOfficeTitle);
+    if (updated.headerClusterName !== undefined) setHeaderClusterName(updated.headerClusterName);
+    if (updated.headerBlock !== undefined) setHeaderBlock(updated.headerBlock);
+    if (updated.headerDistrict !== undefined) setHeaderDistrict(updated.headerDistrict);
+    if (updated.headerState !== undefined) setHeaderState(updated.headerState);
+    if (updated.headerAddress !== undefined) setHeaderAddress(updated.headerAddress);
+    if (updated.headerPhone !== undefined) setHeaderPhone(updated.headerPhone);
+    if (updated.headerEmail !== undefined) setHeaderEmail(updated.headerEmail);
+    if (updated.headerLogoVariant !== undefined) setHeaderLogoVariant(updated.headerLogoVariant);
+    if (updated.headerLogoUrl !== undefined) setHeaderLogoUrl(updated.headerLogoUrl);
   };
 
   // Save order to Firestore / local history
@@ -350,6 +385,16 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
         selectedTeachers,
         signatoryName: signatoryName || profile.defaultSignatory || profile.centerHead,
         signatoryDesignation: signatoryDesignation || profile.defaultDesignation || profile.headDesignation,
+        headerOfficeTitle,
+        headerClusterName,
+        headerBlock,
+        headerDistrict,
+        headerState,
+        headerAddress,
+        headerPhone,
+        headerEmail,
+        headerLogoVariant,
+        headerLogoUrl,
         copyTo
       };
 
@@ -406,6 +451,16 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
     selectedTeachers,
     signatoryName: signatoryName || profile.defaultSignatory || profile.centerHead,
     signatoryDesignation: signatoryDesignation || profile.defaultDesignation || profile.headDesignation,
+    headerOfficeTitle,
+    headerClusterName,
+    headerBlock,
+    headerDistrict,
+    headerState,
+    headerAddress,
+    headerPhone,
+    headerEmail,
+    headerLogoVariant,
+    headerLogoUrl,
     copyTo
   };
 
@@ -520,6 +575,158 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Optional Collapsible Letterhead / Header Customization Card */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setShowHeaderSettings(!showHeaderSettings)}
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-900 hover:text-indigo-600 cursor-pointer text-left w-full"
+              >
+                <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
+                <span>🏛️ लेटरहेड / हेडर विवरण (Custom Header)</span>
+                <span className="ml-auto text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
+                  {showHeaderSettings ? 'छिपाएं ▲' : 'संपादित करें ▼'}
+                </span>
+              </button>
+            </div>
+
+            {showHeaderSettings && (
+              <div className="space-y-3 pt-2 border-t border-slate-100 animate-in fade-in text-xs">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    कार्यालय का पद / शीर्ष पंक्ति (Office Title)
+                  </label>
+                  <input
+                    type="text"
+                    value={headerOfficeTitle !== undefined ? headerOfficeTitle : (profile.officeTitle || 'कार्यालय संकुल समन्वयक / प्राचार्य')}
+                    onChange={(e) => setHeaderOfficeTitle(e.target.value)}
+                    placeholder="उदा. कार्यालय संकुल समन्वयक / प्राचार्य या कार्यालय प्रधानाध्यापक"
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {['कार्यालय संकुल समन्वयक / प्राचार्य', 'कार्यालय प्रधानाध्यापक', 'कार्यालय प्रभारी प्रधानाध्यापक', 'कार्यालय प्रखंड शिक्षा पदाधिकारी'].map(tp => (
+                      <button
+                        key={tp}
+                        type="button"
+                        onClick={() => setHeaderOfficeTitle(tp)}
+                        className="text-[10px] bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                      >
+                        {tp}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    संकुल / विद्यालय का नाम (Cluster/School Name)
+                  </label>
+                  <input
+                    type="text"
+                    value={headerClusterName !== undefined ? headerClusterName : (profile.clusterName || '')}
+                    onChange={(e) => setHeaderClusterName(e.target.value)}
+                    placeholder="उदा. संकुल संसाधन केंद्र, उ.मा.वि. सरैया"
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">प्रखंड</label>
+                    <input
+                      type="text"
+                      value={headerBlock !== undefined ? headerBlock : (profile.blockName || '')}
+                      onChange={(e) => setHeaderBlock(e.target.value)}
+                      placeholder="प्रखंड"
+                      className="w-full px-2 py-1 border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">जिला</label>
+                    <input
+                      type="text"
+                      value={headerDistrict !== undefined ? headerDistrict : (profile.districtName || '')}
+                      onChange={(e) => setHeaderDistrict(e.target.value)}
+                      placeholder="जिला"
+                      className="w-full px-2 py-1 border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">राज्य</label>
+                    <input
+                      type="text"
+                      value={headerState !== undefined ? headerState : (profile.stateName || 'बिहार')}
+                      onChange={(e) => setHeaderState(e.target.value)}
+                      placeholder="राज्य"
+                      className="w-full px-2 py-1 border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">कार्यालय पता</label>
+                    <input
+                      type="text"
+                      value={headerAddress !== undefined ? headerAddress : (profile.officeAddress || '')}
+                      onChange={(e) => setHeaderAddress(e.target.value)}
+                      placeholder="पता"
+                      className="w-full px-2 py-1 border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">फोन / मोबाइल</label>
+                    <input
+                      type="text"
+                      value={headerPhone !== undefined ? headerPhone : (profile.phone || '')}
+                      onChange={(e) => setHeaderPhone(e.target.value)}
+                      placeholder="फोन"
+                      className="w-full px-2 py-1 border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">ईमेल</label>
+                    <input
+                      type="text"
+                      value={headerEmail !== undefined ? headerEmail : (profile.email || '')}
+                      onChange={(e) => setHeaderEmail(e.target.value)}
+                      placeholder="ईमेल"
+                      className="w-full px-2 py-1 border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                </div>
+
+                {onUpdateProfile && (
+                  <div className="pt-1 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onUpdateProfile({
+                          ...profile,
+                          officeTitle: headerOfficeTitle || profile.officeTitle || 'कार्यालय संकुल समन्वयक / प्राचार्य',
+                          clusterName: headerClusterName || profile.clusterName,
+                          blockName: headerBlock || profile.blockName,
+                          districtName: headerDistrict || profile.districtName,
+                          stateName: headerState || profile.stateName,
+                          officeAddress: headerAddress || profile.officeAddress,
+                          phone: headerPhone || profile.phone,
+                          email: headerEmail || profile.email
+                        });
+                        setSaveToast(true);
+                        setTimeout(() => setSaveToast(false), 4000);
+                      }}
+                      className="text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-1 rounded-lg cursor-pointer transition-colors flex items-center gap-1"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>इसे डिफ़ॉल्ट प्रोफ़ाइल में सहेजें</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Core Order Metadata Form */}
@@ -963,6 +1170,7 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
               profile={profile}
               allowInlineEdit={true}
               onUpdateOrder={handleUpdateOrderFromInline}
+              onUpdateProfile={onUpdateProfile}
             />
           </div>
         </div>

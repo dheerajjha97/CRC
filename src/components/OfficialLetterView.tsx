@@ -18,6 +18,7 @@ interface OfficialLetterViewProps {
   isPrintPreview?: boolean;
   allowInlineEdit?: boolean;
   onUpdateOrder?: (updatedOrder: OfficeOrder) => void;
+  onUpdateProfile?: (updatedProfile: CrcProfile) => void;
 }
 
 export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
@@ -26,11 +27,14 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
   id = 'official-letter-document',
   isPrintPreview = false,
   allowInlineEdit = true,
-  onUpdateOrder
+  onUpdateOrder,
+  onUpdateProfile
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editableOrder, setEditableOrder] = useState<OfficeOrder>({ ...order });
   const [saveToast, setSaveToast] = useState(false);
+  const [profileSavedToast, setProfileSavedToast] = useState(false);
+  const [showLogoPicker, setShowLogoPicker] = useState(false);
 
   // Sync internal state when external order prop changes
   useEffect(() => {
@@ -46,6 +50,27 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
     if (onUpdateOrder) {
       onUpdateOrder(updated);
     }
+  };
+
+  // Save current header as default profile header
+  const handleSaveHeaderToProfile = () => {
+    if (!onUpdateProfile) return;
+    const updatedProfile: CrcProfile = {
+      ...profile,
+      officeTitle: activeOrder.headerOfficeTitle ?? profile.officeTitle ?? 'कार्यालय संकुल समन्वयक / प्राचार्य',
+      clusterName: activeOrder.headerClusterName ?? profile.clusterName ?? 'संकुल संसाधन केंद्र (CRC)',
+      blockName: activeOrder.headerBlock ?? profile.blockName ?? 'गायघाट',
+      districtName: activeOrder.headerDistrict ?? profile.districtName ?? 'मुजफ्फरपुर',
+      stateName: activeOrder.headerState ?? profile.stateName ?? 'बिहार',
+      officeAddress: activeOrder.headerAddress ?? profile.officeAddress ?? 'संकुल संसाधन केंद्र, शिक्षा विभाग',
+      phone: activeOrder.headerPhone ?? profile.phone ?? '',
+      email: activeOrder.headerEmail ?? profile.email ?? '',
+      logoVariant: activeOrder.headerLogoVariant ?? profile.logoVariant ?? 'bihar_seal',
+      logoUrl: activeOrder.headerLogoUrl ?? profile.logoUrl ?? ''
+    };
+    onUpdateProfile(updatedProfile);
+    setProfileSavedToast(true);
+    setTimeout(() => setProfileSavedToast(false), 4000);
   };
 
   // Teachers table operations
@@ -226,7 +251,18 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
   // Signatory details
   const primarySignatoryName = activeOrder.signatoryName || profile.defaultSignatory || profile.centerHead || 'संकुल प्राचार्य / समन्वयक';
   const primarySignatoryDesignation = activeOrder.signatoryDesignation || profile.defaultDesignation || profile.headDesignation || 'संकुल समन्वयक / प्राचार्य';
-  const clusterTitle = profile.clusterName || 'संकुल संसाधन केंद्र (CRC)';
+  
+  // Header details (supports order-level customization or profile fallbacks)
+  const headerOfficeTitle = activeOrder.headerOfficeTitle !== undefined ? activeOrder.headerOfficeTitle : (profile.officeTitle || 'कार्यालय संकुल समन्वयक / प्राचार्य');
+  const headerClusterName = activeOrder.headerClusterName !== undefined ? activeOrder.headerClusterName : (profile.clusterName || 'संकुल संसाधन केंद्र (CRC)');
+  const headerBlock = activeOrder.headerBlock !== undefined ? activeOrder.headerBlock : (profile.blockName || 'गायघाट');
+  const headerDistrict = activeOrder.headerDistrict !== undefined ? activeOrder.headerDistrict : (profile.districtName || 'मुजफ्फरपुर');
+  const headerState = activeOrder.headerState !== undefined ? activeOrder.headerState : (profile.stateName || 'बिहार');
+  const headerAddress = activeOrder.headerAddress !== undefined ? activeOrder.headerAddress : (profile.officeAddress || 'संकुल संसाधन केंद्र, शिक्षा विभाग');
+  const headerPhone = activeOrder.headerPhone !== undefined ? activeOrder.headerPhone : (profile.phone || '');
+  const headerEmail = activeOrder.headerEmail !== undefined ? activeOrder.headerEmail : (profile.email || '');
+  const headerLogoVariant = activeOrder.headerLogoVariant || profile.logoVariant || 'bihar_seal';
+  const headerLogoUrl = activeOrder.headerLogoUrl || profile.logoUrl;
 
   const copyToList = activeOrder.copyTo !== undefined ? activeOrder.copyTo : defaultCopies;
   const showCopyTo = copyToList && copyToList.length > 0;
@@ -268,12 +304,18 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
             {isEditing && (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200">
                 <Sparkles className="w-3 h-3 text-amber-600 animate-pulse" />
-                पत्र में किसी भी टेक्स्ट या तालिका पर सीधे क्लिक करके टाइप करें
+                हेडर, विषय, विवरण या तालिका पर सीधे क्लिक करके संपादन करें
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-2 text-xs">
+            {profileSavedToast && (
+              <span className="flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded border border-indigo-300 animate-in fade-in">
+                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
+                हेडर प्रोफ़ाइल में सुरक्षित हो गया!
+              </span>
+            )}
             {saveToast && (
               <span className="flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-300 animate-in fade-in">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -303,61 +345,308 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
         }}
       >
         {/* Top Official Letterhead */}
-        <div 
-          className="letterhead-header border-b-2 border-slate-900 pb-3 mb-4 flex items-center justify-between gap-4"
-          style={{ 
-            borderBottom: '2.5px solid #0f172a', 
-            paddingBottom: '12px', 
-            marginBottom: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}
-        >
-          {/* Official Emblem Logo */}
-          <div className="shrink-0 flex items-center justify-center">
-            <BiharEducationLogo 
-              variant={profile.logoVariant || 'bihar_seal'} 
-              size={72} 
-              className="print:w-16 print:h-16" 
-            />
-          </div>
+        {isEditing ? (
+          <div className="letterhead-header border-2 border-dashed border-amber-400 bg-amber-50/40 p-3.5 rounded-xl mb-4 print:border-none print:p-0">
+            <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-amber-200">
+              <span className="text-[11px] font-bold text-amber-900 uppercase flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-amber-600" />
+                🏛️ शासकीय लेटरहेड / हेडर संपादन (Edit Letterhead)
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLogoPicker(!showLogoPicker)}
+                  className="text-[10px] font-bold bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded cursor-pointer transition-colors shadow-2xs"
+                >
+                  {showLogoPicker ? 'लोगो विकल्प बंद करें' : '🖼️ लोगो/सील बदलें'}
+                </button>
+                {onUpdateProfile && (
+                  <button
+                    type="button"
+                    onClick={handleSaveHeaderToProfile}
+                    className="text-[10px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-0.5 rounded cursor-pointer transition-colors shadow-2xs flex items-center gap-1"
+                    title="इस हेडर को डिफ़ॉल्ट प्रोफ़ाइल में सहेजें ताकि भविष्य के सभी आदेशों में यही दिखे"
+                  >
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>प्रोफ़ाइल में डिफ़ॉल्ट बनाएं</span>
+                  </button>
+                )}
+              </div>
+            </div>
 
-          {/* Letterhead Text Center Aligned */}
-          <div className="flex-1 text-center px-2">
-            <p 
-              className="text-xs md:text-sm font-semibold text-slate-700 tracking-wider uppercase mb-0.5"
-              style={{ fontSize: '12px', fontWeight: '600', color: '#334155', letterSpacing: '1px', margin: 0 }}
-            >
-              कार्यालय संकुल समन्वयक / प्राचार्य
-            </p>
-            <h1 
-              className="text-lg md:text-xl font-black text-slate-950 tracking-wide mb-0.5"
-              style={{ fontSize: '19px', fontWeight: '900', color: '#020617', margin: '2px 0' }}
-            >
-              {clusterTitle}
-            </h1>
-            <p 
-              className="text-xs md:text-sm font-bold text-slate-800 mb-0.5"
-              style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0 }}
-            >
-              प्रखंड/विकासखंड: {profile.blockName || 'गायघाट'}, जिला: {profile.districtName || 'मुजफ्फरपुर'} ({profile.stateName || 'बिहार'})
-            </p>
-            <p 
-              className="text-[11px] text-slate-600 font-medium"
-              style={{ fontSize: '11px', color: '#475569', margin: 0 }}
-            >
-              {profile.officeAddress || 'संकुल संसाधन केंद्र, शिक्षा विभाग'}
-              {profile.phone ? ` | दूरभाष: ${profile.phone}` : ''}
-              {profile.email ? ` | ई-मेल: ${profile.email}` : ''}
-            </p>
-          </div>
+            {/* Optional Logo Selector Row */}
+            {showLogoPicker && (
+              <div className="bg-white p-3 rounded-lg border border-amber-200 shadow-xs mb-3 space-y-2">
+                <div className="text-[11px] font-bold text-slate-800">लोगो एवं शासकीय सील चयन:</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleFieldChange('headerLogoVariant', 'bihar_seal');
+                      handleFieldChange('headerLogoUrl', '');
+                    }}
+                    className={`flex items-center gap-2 p-1.5 rounded-lg border text-left cursor-pointer transition-all ${
+                      headerLogoVariant === 'bihar_seal' && !headerLogoUrl ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-500' : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <BiharEducationLogo variant="bihar_seal" size={32} />
+                    <div className="text-[10px]">
+                      <div className="font-bold text-slate-900">बिहार सरकार सील</div>
+                      <div className="text-slate-500">मानक राज्य सील</div>
+                    </div>
+                  </button>
 
-          {/* Right Logo Spacer for perfect symmetry */}
-          <div className="shrink-0 flex items-center justify-center opacity-0 pointer-events-none w-[72px]" aria-hidden="true">
-            <BiharEducationLogo size={72} />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleFieldChange('headerLogoVariant', 'shiksha_vibhag');
+                      handleFieldChange('headerLogoUrl', '');
+                    }}
+                    className={`flex items-center gap-2 p-1.5 rounded-lg border text-left cursor-pointer transition-all ${
+                      headerLogoVariant === 'shiksha_vibhag' && !headerLogoUrl ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-500' : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <BiharEducationLogo variant="shiksha_vibhag" size={32} />
+                    <div className="text-[10px]">
+                      <div className="font-bold text-slate-900">शिक्षा विभाग सील</div>
+                      <div className="text-slate-500">विभागीय प्रतीक</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleFieldChange('headerLogoVariant', 'ashoka_emblem');
+                      handleFieldChange('headerLogoUrl', '');
+                    }}
+                    className={`flex items-center gap-2 p-1.5 rounded-lg border text-left cursor-pointer transition-all ${
+                      headerLogoVariant === 'ashoka_emblem' && !headerLogoUrl ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-500' : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <BiharEducationLogo variant="ashoka_emblem" size={32} />
+                    <div className="text-[10px]">
+                      <div className="font-bold text-slate-900">अशोक स्तम्भ सील</div>
+                      <div className="text-slate-500">राष्ट्रीय प्रतीक</div>
+                    </div>
+                  </button>
+                </div>
+
+                <div className="pt-1">
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                    या कस्टम लोगो इमेज URL:
+                  </label>
+                  <input
+                    type="url"
+                    value={headerLogoUrl || ''}
+                    onChange={(e) => handleFieldChange('headerLogoUrl', e.target.value)}
+                    placeholder="https://example.com/custom-logo.png"
+                    className="w-full px-2.5 py-1 text-xs border border-slate-300 rounded font-mono"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-start gap-3">
+              {/* Logo Display */}
+              <div 
+                className="shrink-0 flex flex-col items-center justify-center cursor-pointer group"
+                onClick={() => setShowLogoPicker(!showLogoPicker)}
+                title="लोगो बदलने के लिए क्लिक करें"
+              >
+                <BiharEducationLogo 
+                  variant={headerLogoVariant} 
+                  customUrl={headerLogoUrl}
+                  size={68} 
+                  className="group-hover:opacity-80 transition-opacity" 
+                />
+                <span className="text-[9px] text-amber-800 font-bold mt-1 group-hover:underline">बदलें ⚙️</span>
+              </div>
+
+              {/* Editable Fields in Letterhead */}
+              <div className="flex-1 space-y-2">
+                {/* Office Title Input & Presets */}
+                <div>
+                  <div className="flex items-center justify-between gap-1 mb-0.5">
+                    <label className="text-[10px] font-bold text-slate-700">
+                      कार्यालय का पद / शीर्ष पंक्ति:
+                    </label>
+                    <div className="flex flex-wrap gap-1">
+                      {['कार्यालय संकुल समन्वयक / प्राचार्य', 'कार्यालय प्रधानाध्यापक', 'कार्यालय प्रभारी प्रधानाध्यापक', 'कार्यालय प्रखंड शिक्षा पदाधिकारी'].map(titlePreset => (
+                        <button
+                          key={titlePreset}
+                          type="button"
+                          onClick={() => handleFieldChange('headerOfficeTitle', titlePreset)}
+                          className="text-[9px] bg-white hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 px-1.5 py-0.2 rounded cursor-pointer transition-colors"
+                        >
+                          {titlePreset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    value={headerOfficeTitle}
+                    onChange={(e) => handleFieldChange('headerOfficeTitle', e.target.value)}
+                    placeholder="कार्यालय संकुल समन्वयक / प्राचार्य"
+                    className="w-full px-2.5 py-1 bg-white border border-amber-400 rounded text-center text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+
+                {/* Main Cluster / School Heading */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-700 mb-0.5">
+                    संकुल / विद्यालय का मुख्य नाम (Cluster/School Name):
+                  </label>
+                  <input
+                    type="text"
+                    value={headerClusterName}
+                    onChange={(e) => handleFieldChange('headerClusterName', e.target.value)}
+                    placeholder="उदा. संकुल संसाधन केंद्र, उत्क्रमित उच्च माध्यमिक विद्यालय..."
+                    className="w-full px-2.5 py-1 bg-white border border-amber-400 rounded text-center text-sm md:text-base font-black text-slate-950 focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+
+                {/* Block, District, State (3 columns) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-600">प्रखंड / विकासखंड:</label>
+                    <input
+                      type="text"
+                      value={headerBlock}
+                      onChange={(e) => handleFieldChange('headerBlock', e.target.value)}
+                      placeholder="प्रखंड (उदा. गायघाट)"
+                      className="w-full px-2 py-0.5 bg-white border border-amber-300 rounded text-xs font-bold text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-600">जिला:</label>
+                    <input
+                      type="text"
+                      value={headerDistrict}
+                      onChange={(e) => handleFieldChange('headerDistrict', e.target.value)}
+                      placeholder="जिला (उदा. मुजफ्फरपुर)"
+                      className="w-full px-2 py-0.5 bg-white border border-amber-300 rounded text-xs font-bold text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-600">राज्य:</label>
+                    <input
+                      type="text"
+                      value={headerState}
+                      onChange={(e) => handleFieldChange('headerState', e.target.value)}
+                      placeholder="राज्य (उदा. बिहार)"
+                      className="w-full px-2 py-0.5 bg-white border border-amber-300 rounded text-xs font-bold text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                {/* Address, Phone, Email (3 columns) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-600">कार्यालय का पता:</label>
+                    <input
+                      type="text"
+                      value={headerAddress}
+                      onChange={(e) => handleFieldChange('headerAddress', e.target.value)}
+                      placeholder="पता / स्थान"
+                      className="w-full px-2 py-0.5 bg-white border border-amber-300 rounded text-[11px] text-slate-700"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-600">दूरभाष / मोबाइल:</label>
+                    <input
+                      type="text"
+                      value={headerPhone}
+                      onChange={(e) => handleFieldChange('headerPhone', e.target.value)}
+                      placeholder="+91 9XXXXXXXXX"
+                      className="w-full px-2 py-0.5 bg-white border border-amber-300 rounded text-[11px] text-slate-700"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-600">कार्यालयीन ईमेल:</label>
+                    <input
+                      type="email"
+                      value={headerEmail}
+                      onChange={(e) => handleFieldChange('headerEmail', e.target.value)}
+                      placeholder="crc.office@gmail.com"
+                      className="w-full px-2 py-0.5 bg-white border border-amber-300 rounded text-[11px] text-slate-700"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div 
+            className="letterhead-header relative group/head border-b-2 border-slate-900 pb-3 mb-4 flex items-center justify-between gap-4"
+            style={{ 
+              borderBottom: '2.5px solid #0f172a', 
+              paddingBottom: '12px', 
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
+            {/* Quick Edit Header Button on Hover in View Mode */}
+            {allowInlineEdit && (
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="absolute -top-3 right-0 print:hidden opacity-0 group-hover/head:opacity-100 transition-opacity bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[10px] font-bold px-2 py-0.5 rounded shadow-2xs cursor-pointer flex items-center gap-1"
+                title="हेडर विवरण संपादित करें"
+              >
+                <Edit3 className="w-3 h-3" />
+                <span>हेडर एडिट करें</span>
+              </button>
+            )}
+
+            {/* Official Emblem Logo */}
+            <div className="shrink-0 flex items-center justify-center">
+              <BiharEducationLogo 
+                variant={headerLogoVariant} 
+                customUrl={headerLogoUrl}
+                size={72} 
+                className="print:w-16 print:h-16" 
+              />
+            </div>
+
+            {/* Letterhead Text Center Aligned */}
+            <div className="flex-1 text-center px-2">
+              <p 
+                className="text-xs md:text-sm font-semibold text-slate-700 tracking-wider uppercase mb-0.5"
+                style={{ fontSize: '12px', fontWeight: '600', color: '#334155', letterSpacing: '1px', margin: 0 }}
+              >
+                {headerOfficeTitle}
+              </p>
+              <h1 
+                className="text-lg md:text-xl font-black text-slate-950 tracking-wide mb-0.5"
+                style={{ fontSize: '19px', fontWeight: '900', color: '#020617', margin: '2px 0' }}
+              >
+                {headerClusterName}
+              </h1>
+              <p 
+                className="text-xs md:text-sm font-bold text-slate-800 mb-0.5"
+                style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0 }}
+              >
+                प्रखंड/विकासखंड: {headerBlock || 'गायघाट'}, जिला: {headerDistrict || 'मुजफ्फरपुर'} ({headerState || 'बिहार'})
+              </p>
+              <p 
+                className="text-[11px] text-slate-600 font-medium"
+                style={{ fontSize: '11px', color: '#475569', margin: 0 }}
+              >
+                {headerAddress || 'संकुल संसाधन केंद्र, शिक्षा विभाग'}
+                {headerPhone ? ` | दूरभाष: ${headerPhone}` : ''}
+                {headerEmail ? ` | ई-मेल: ${headerEmail}` : ''}
+              </p>
+            </div>
+
+            {/* Right Logo Spacer for perfect symmetry */}
+            <div className="shrink-0 flex items-center justify-center opacity-0 pointer-events-none w-[72px]" aria-hidden="true">
+              <BiharEducationLogo size={72} />
+            </div>
+          </div>
+        )}
 
         {/* Dispatch Order Number & Date Bar */}
         <div 
@@ -1048,7 +1337,7 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
                   className="text-[11px] text-slate-700 font-medium"
                   style={{ fontSize: '11px', color: '#334155', margin: 0 }}
                 >
-                  {clusterTitle}, {profile.blockName || 'गायघाट'}
+                  {headerClusterName}, {headerBlock || 'गायघाट'}
                 </p>
               </>
             )}
@@ -1146,7 +1435,7 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
                   className="text-[11px] text-slate-700 font-medium"
                   style={{ fontSize: '11px', color: '#334155', margin: 0 }}
                 >
-                  {clusterTitle}, {profile.blockName || 'गायघाट'}
+                  {headerClusterName}, {headerBlock || 'गायघाट'}
                 </p>
               </div>
             </div>

@@ -87,7 +87,33 @@ export const CrcProfileSettings: React.FC<CrcProfileSettingsProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                संकुल का नाम (CRC Name) *
+                कार्यालय का पद / शीर्षक (Office Title in Header) *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.officeTitle || 'कार्यालय संकुल समन्वयक / प्राचार्य'}
+                onChange={(e) => handleChange('officeTitle', e.target.value)}
+                placeholder="उदा. कार्यालय संकुल समन्वयक / प्राचार्य या कार्यालय प्रधानाध्यापक"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 font-medium"
+              />
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {['कार्यालय संकुल समन्वयक / प्राचार्य', 'कार्यालय प्रधानाध्यापक', 'कार्यालय प्रभारी प्रधानाध्यापक', 'कार्यालय प्रखंड शिक्षा पदाधिकारी'].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => handleChange('officeTitle', preset)}
+                    className="text-[10px] bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                संकुल / विद्यालय का नाम (CRC / School Name) *
               </label>
               <input
                 type="text"
@@ -136,6 +162,19 @@ export const CrcProfileSettings: React.FC<CrcProfileSettingsProps> = ({
                 value={formData.stateName || 'बिहार'}
                 onChange={(e) => handleChange('stateName', e.target.value)}
                 className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                कार्यालय का पता (Office Address)
+              </label>
+              <input
+                type="text"
+                value={formData.officeAddress || ''}
+                onChange={(e) => handleChange('officeAddress', e.target.value)}
+                placeholder="उदा. संकुल संसाधन केंद्र, मध्य विद्यालय प्रांगण"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>
           </div>
@@ -231,6 +270,45 @@ export const CrcProfileSettings: React.FC<CrcProfileSettingsProps> = ({
                 placeholder="crc.office@gmail.com"
                 className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-medium"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Section 4: Letterhead Logo / Emblem */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+            <Sparkles className="w-4 h-4 text-indigo-600" />
+            शासकीय सील / लोगो चयन (Letterhead Emblem)
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-2">
+                मानक सील प्रारूप
+              </label>
+              <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <BiharEducationLogo size={56} customUrl={formData.logoUrl} />
+                <div className="text-xs text-slate-600">
+                  <div className="font-bold text-slate-900">शिक्षा विभाग • बिहार सरकार सील</div>
+                  <div className="text-[11px] text-slate-500">बोधिवृक्ष एवं स्वास्तिक सहित शासकीय प्रतीक</div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                कस्टम लोगो इमेज URL (वैकल्पिक)
+              </label>
+              <input
+                type="url"
+                value={formData.logoUrl || ''}
+                onChange={(e) => handleChange('logoUrl', e.target.value)}
+                placeholder="https://example.com/custom-logo.png"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-mono"
+              />
+              <span className="text-[10px] text-slate-500 mt-1 block">
+                रिक्त रखने पर स्वतः बिहार सरकार का मानक शिक्षा विभाग लोगो प्रयुक्त होगा।
+              </span>
             </div>
           </div>
         </div>

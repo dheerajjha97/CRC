@@ -54,6 +54,17 @@ export interface OfficeOrder {
   meetingVenue?: string;
   signatoryName?: string;
   signatoryDesignation?: string;
+  // Header Customization (Order specific override)
+  headerOfficeTitle?: string;
+  headerClusterName?: string;
+  headerBlock?: string;
+  headerDistrict?: string;
+  headerState?: string;
+  headerAddress?: string;
+  headerPhone?: string;
+  headerEmail?: string;
+  headerLogoVariant?: 'bihar_seal' | 'shiksha_vibhag' | 'ashoka_emblem';
+  headerLogoUrl?: string;
   copyTo?: string[]; // प्रतिलिपि
   createdAt?: string;
   updatedAt?: string;
@@ -61,6 +72,7 @@ export interface OfficeOrder {
 
 export interface CrcProfile {
   clusterName: string;
+  officeTitle?: string; // e.g. "कार्यालय संकुल समन्वयक / प्राचार्य"
   blockName: string;
   districtName: string;
   stateName: string;

@@ -26,6 +26,7 @@ interface OrderHistoryProps {
   onEditOrder: (order: OfficeOrder) => void;
   onDeleteOrder: (id: string) => Promise<void>;
   onUpdateOrder?: (id: string, updated: Partial<OfficeOrder>) => Promise<void>;
+  onUpdateProfile?: (updatedProfile: CrcProfile) => Promise<void>;
   onNavigateToCreate?: () => void;
   onNavigateToAi?: () => void;
   onRefresh?: () => Promise<void>;
@@ -38,6 +39,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
   onEditOrder,
   onDeleteOrder,
   onUpdateOrder,
+  onUpdateProfile,
   onNavigateToCreate,
   onNavigateToAi,
   onRefresh,
@@ -365,6 +367,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
                     await onUpdateOrder(updated.id, updated);
                   }
                 }}
+                onUpdateProfile={onUpdateProfile}
               />
             </div>
           </div>

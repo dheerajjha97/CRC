@@ -271,6 +271,7 @@ export function App() {
                 savedOrders={orders}
                 initialOrder={editingOrder}
                 onSaveOrder={handleSaveOrder}
+                onUpdateProfile={handleSaveProfile}
                 onNavigateToHistory={() => setActiveTab('history')}
               />
             )}
@@ -282,6 +283,7 @@ export function App() {
                 onEditOrder={handleEditOrder}
                 onDeleteOrder={handleDeleteOrder}
                 onUpdateOrder={handleDirectUpdateOrder}
+                onUpdateProfile={handleSaveProfile}
                 onRefresh={loadAllData}
                 isRefreshing={isLoading}
                 onNavigateToCreate={() => {

@@ -13,6 +13,7 @@ import { Teacher, OfficeOrder, CrcProfile, ClusterSchool, CustomTableData } from
 
 export const DEFAULT_CRC_PROFILE: CrcProfile = {
   clusterName: 'संकुल संसाधन केंद्र (CRC)',
+  officeTitle: 'कार्यालय संकुल समन्वयक / प्राचार्य',
   blockName: 'गायघाट',
   districtName: 'मुजफ्फरपुर',
   stateName: 'बिहार',
@@ -23,7 +24,8 @@ export const DEFAULT_CRC_PROFILE: CrcProfile = {
   officeAddress: 'संकुल संसाधन केंद्र, शिक्षा विभाग, बिहार',
   letterPrefix: 'क्र./सं.सं.के./2026/',
   defaultSignatory: '',
-  defaultDesignation: 'प्राचार्य / संकुल समन्वयक'
+  defaultDesignation: 'प्राचार्य / संकुल समन्वयक',
+  logoVariant: 'bihar_seal'
 };
 
 /**
