@@ -47,7 +47,12 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'draft' | 'final'>('all');
   const [selectedPreviewOrder, setSelectedPreviewOrder] = useState<OfficeOrder | null>(null);
+
+  // Count drafts and finals
+  const draftCount = orders.filter(o => o.status === 'draft').length;
+  const finalCount = orders.filter(o => o.status !== 'draft').length;
 
   // Filter orders
   const filteredOrders = orders.filter(order => {
@@ -59,8 +64,22 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
 
     const matchesCategory = selectedCategory === 'all' || order.orderType === selectedCategory;
 
-    return matchesSearch && matchesCategory;
+    const matchesStatus = 
+      selectedStatus === 'all' ||
+      (selectedStatus === 'draft' && order.status === 'draft') ||
+      (selectedStatus === 'final' && order.status !== 'draft');
+
+    return matchesSearch && matchesCategory && matchesStatus;
   });
+
+  // Convert a draft to final issued order
+  const handleMakeOrderFinal = async (order: OfficeOrder) => {
+    if (!onUpdateOrder || !order.id) return;
+    await onUpdateOrder(order.id, {
+      status: 'final',
+      updatedAt: new Date().toISOString()
+    });
+  };
 
   const handleDownloadSinglePdf = async (order: OfficeOrder) => {
     setSelectedPreviewOrder(order);
@@ -158,31 +177,82 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="पत्र क्रमांक, विषय, शिक्षक के नाम या विवरण से खोजें..."
-            className="w-full pl-10 pr-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500"
-          />
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+        {/* Status Tabs: All vs Drafts vs Issued */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setSelectedStatus('all')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                selectedStatus === 'all'
+                  ? 'bg-white text-indigo-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              सभी आदेश ({orders.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedStatus('draft')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                selectedStatus === 'draft'
+                  ? 'bg-amber-500 text-white shadow-2xs'
+                  : 'text-amber-800 hover:text-amber-950 bg-amber-50/50'
+              }`}
+            >
+              <span>📝 ड्राफ्ट मसौदे</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedStatus === 'draft' ? 'bg-amber-600 text-white' : 'bg-amber-200 text-amber-900'}`}>
+                {draftCount}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedStatus('final')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                selectedStatus === 'final'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'text-emerald-800 hover:text-emerald-950 bg-emerald-50/50'
+              }`}
+            >
+              <span>✅ निर्गत आदेश</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedStatus === 'final' ? 'bg-emerald-700 text-white' : 'bg-emerald-200 text-emerald-900'}`}>
+                {finalCount}
+              </span>
+            </button>
+          </div>
+
+          <span className="text-[11px] text-slate-500 font-medium">
+            कुल {filteredOrders.length} रिकॉर्ड प्रदर्शित
+          </span>
         </div>
 
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="w-full sm:w-56 px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs bg-white text-slate-700 font-medium"
-        >
-          <option value="all">सभी आदेश प्रकार ({orders.length})</option>
-          <option value="meeting">बैठक आदेश (Meeting)</option>
-          <option value="exam_duty">परीक्षा वीक्षक (Exam Duty)</option>
-          <option value="deputation">प्रतिनियुक्ति (Deputation)</option>
-          <option value="training">प्रशिक्षण (Training)</option>
-          <option value="evaluation">मूल्यांकन (Evaluation)</option>
-          <option value="general">सामान्य आदेश (General)</option>
-        </select>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative flex-1 w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="पत्र क्रमांक, विषय, शिक्षक के नाम या विवरण से खोजें..."
+              className="w-full pl-10 pr-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full sm:w-56 px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs bg-white text-slate-700 font-medium"
+          >
+            <option value="all">सभी आदेश प्रकार ({orders.length})</option>
+            <option value="meeting">बैठक आदेश (Meeting)</option>
+            <option value="exam_duty">परीक्षा वीक्षक (Exam Duty)</option>
+            <option value="deputation">प्रतिनियुक्ति (Deputation)</option>
+            <option value="training">प्रशिक्षण (Training)</option>
+            <option value="evaluation">मूल्यांकन (Evaluation)</option>
+            <option value="general">सामान्य आदेश (General)</option>
+          </select>
+        </div>
       </div>
 
       {/* Orders Table & Register List */}
@@ -203,18 +273,31 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
               <thead className="bg-slate-50 text-slate-900 font-bold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4 w-12 text-center">क्र.</th>
+                  <th className="py-3 px-4 w-32">स्थिति</th>
                   <th className="py-3 px-4 w-36">पत्र क्रमांक</th>
                   <th className="py-3 px-4 w-28">दिनांक</th>
                   <th className="py-3 px-4">विषय (Subject)</th>
                   <th className="py-3 px-4 w-28 text-center">संबद्ध शिक्षक</th>
-                  <th className="py-3 px-4 w-44 text-right">कार्रवाई (Actions)</th>
+                  <th className="py-3 px-4 w-48 text-right">कार्रवाई (Actions)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredOrders.map((order, idx) => (
-                  <tr key={order.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={order.id || idx} className={`hover:bg-slate-50/80 transition-colors ${order.status === 'draft' ? 'bg-amber-50/20' : ''}`}>
                     <td className="py-3.5 px-4 text-center font-medium text-slate-500">
                       {idx + 1}
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      {order.status === 'draft' ? (
+                        <span className="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded text-[10px]">
+                          📝 ड्राफ्ट
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-100/90 border border-emerald-300 px-2 py-0.5 rounded text-[10px]">
+                          ✅ निर्गत
+                        </span>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -251,6 +334,17 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
 
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {order.status === 'draft' && (
+                          <button
+                            type="button"
+                            onClick={() => handleMakeOrderFinal(order)}
+                            className="text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded transition-colors cursor-pointer shadow-2xs"
+                            title="इस ड्राफ्ट को अंतिम आदेश बनाकर जारी करें"
+                          >
+                            जारी करें
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => setSelectedPreviewOrder(order)}

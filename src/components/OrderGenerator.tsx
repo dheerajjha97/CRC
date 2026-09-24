@@ -100,12 +100,18 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
   const [signatoryName, setSignatoryName] = useState('');
   const [signatoryDesignation, setSignatoryDesignation] = useState('');
 
+  // Closing Compliance Note ("उक्त आदेश का तत्काल...")
+  const [showComplianceNote, setShowComplianceNote] = useState<boolean>(true);
+  const [complianceNote, setComplianceNote] = useState<string>('उक्त आदेश का तत्काल एवं कड़ाई से पालन सुनिश्चित किया जाए।');
+  const [orderStatus, setOrderStatus] = useState<'draft' | 'final'>('final');
+
   // Endorsement Copy To
   const [copyTo, setCopyTo] = useState<string[]>([]);
 
   // UI state
   const [isSaving, setIsSaving] = useState(false);
   const [saveToast, setSaveToast] = useState(false);
+  const [draftSavedToast, setDraftSavedToast] = useState(false);
   const [teacherSearch, setTeacherSearch] = useState('');
   const [selectedSchoolFilter, setSelectedSchoolFilter] = useState('');
   const [bulkDeputedSchool, setBulkDeputedSchool] = useState('');
@@ -134,6 +140,9 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
       setHeaderEmail(initialOrder.headerEmail);
       setHeaderLogoVariant(initialOrder.headerLogoVariant);
       setHeaderLogoUrl(initialOrder.headerLogoUrl);
+      setShowComplianceNote(initialOrder.showComplianceNote !== false);
+      setComplianceNote(initialOrder.complianceNote || 'उक्त आदेश का तत्काल एवं कड़ाई से पालन सुनिश्चित किया जाए।');
+      setOrderStatus(initialOrder.status || 'final');
       setMeetingDate(initialOrder.meetingDate || '');
       setMeetingTime(initialOrder.meetingTime || '');
       setMeetingVenue(initialOrder.meetingVenue || '');
@@ -363,11 +372,15 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
     if (updated.headerEmail !== undefined) setHeaderEmail(updated.headerEmail);
     if (updated.headerLogoVariant !== undefined) setHeaderLogoVariant(updated.headerLogoVariant);
     if (updated.headerLogoUrl !== undefined) setHeaderLogoUrl(updated.headerLogoUrl);
+    if (updated.showComplianceNote !== undefined) setShowComplianceNote(updated.showComplianceNote);
+    if (updated.complianceNote !== undefined) setComplianceNote(updated.complianceNote);
+    if (updated.status !== undefined) setOrderStatus(updated.status);
   };
 
   // Save order to Firestore / local history
-  const handleSave = async (silent: boolean = false): Promise<void> => {
-    if (!subject.trim() || !content.trim()) return;
+  const handleSave = async (statusOverride?: 'draft' | 'final', silent: boolean = false): Promise<void> => {
+    const saveStatus = statusOverride || orderStatus;
+    if (!subject.trim()) return;
 
     setIsSaving(true);
     try {
@@ -396,13 +409,22 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
         headerEmail,
         headerLogoVariant,
         headerLogoUrl,
+        showComplianceNote,
+        complianceNote,
+        status: saveStatus,
         copyTo
       };
 
+      setOrderStatus(saveStatus);
       await onSaveOrder(orderPayload, initialOrder?.id);
       if (!silent) {
-        setSaveToast(true);
-        setTimeout(() => setSaveToast(false), 4000);
+        if (saveStatus === 'draft') {
+          setDraftSavedToast(true);
+          setTimeout(() => setDraftSavedToast(false), 4000);
+        } else {
+          setSaveToast(true);
+          setTimeout(() => setSaveToast(false), 4000);
+        }
       }
     } catch (err) {
       console.error('Error saving order:', err);
@@ -414,7 +436,7 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
   const handleDownloadPdf = async () => {
     try {
       // Auto-save to ensure letter is logged in Jawak Panji
-      await handleSave(true);
+      await handleSave('final', true);
       const cleanName = subject ? subject.substring(0, 30).replace(/[^a-zA-Z0-9\u0900-\u097F]/g, '_') : 'Aadesh';
       await downloadOrderAsPdf('official-letter-document', `${orderNumber || 'CRC_Order'}_${cleanName}.pdf`);
       setSaveToast(true);
@@ -427,7 +449,7 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
   const handlePrint = async () => {
     try {
       // Auto-save to ensure letter is logged in Jawak Panji
-      await handleSave(true);
+      await handleSave('final', true);
       printOrderDirectly('official-letter-document');
       setSaveToast(true);
       setTimeout(() => setSaveToast(false), 4000);
@@ -462,6 +484,9 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
     headerEmail,
     headerLogoVariant,
     headerLogoUrl,
+    showComplianceNote,
+    complianceNote,
+    status: orderStatus,
     copyTo
   };
 
@@ -497,6 +522,22 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {draftSavedToast && (
+            <div className="flex items-center gap-2 bg-amber-50 text-amber-900 border border-amber-300 px-3 py-1.5 rounded-xl text-xs font-semibold animate-in fade-in shadow-xs">
+              <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>📝 ड्राफ्ट मसौदा सुरक्षित!</span>
+              {onNavigateToHistory && (
+                <button
+                  type="button"
+                  onClick={onNavigateToHistory}
+                  className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold px-2 py-0.5 rounded-lg ml-1 cursor-pointer transition-colors"
+                >
+                  पंजी देखें →
+                </button>
+              )}
+            </div>
+          )}
+
           {saveToast && (
             <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1.5 rounded-xl text-xs font-semibold animate-in fade-in shadow-xs">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -513,14 +554,28 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
             </div>
           )}
 
+          {/* Save as Draft button */}
           <button
             type="button"
-            onClick={() => handleSave(false)}
+            onClick={() => handleSave('draft')}
+            disabled={isSaving}
+            className="inline-flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 hover:border-amber-400 text-xs font-bold px-3 py-2 rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-50"
+            title="इस पत्र को ड्राफ्ट मसौदे के रूप में सुरक्षित करें"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>{isSaving ? 'सेव हो रहा...' : '📝 ड्राफ्ट सहेजें'}</span>
+          </button>
+
+          {/* Save as Final Order */}
+          <button
+            type="button"
+            onClick={() => handleSave('final')}
             disabled={isSaving}
             className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-50"
+            title="आदेश जारी करें और संकुल जावक पंजी में दर्ज करें"
           >
             <Save className="w-3.5 h-3.5" />
-            <span>{isSaving ? 'सेव हो रहा है...' : 'जावक पंजी में सेव करें'}</span>
+            <span>{isSaving ? 'सेव हो रहा...' : 'जावक पंजी में सेव करें'}</span>
           </button>
 
           <button
@@ -812,6 +867,68 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
                 placeholder="शासकीय भाषा में आदेश का संपूर्ण विवरण लिखें..."
                 label="वर्ड एडिटर (Letter Body)"
               />
+            </div>
+
+            {/* Closing Compliance Sentence (Option to Remove or Customize) */}
+            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={showComplianceNote}
+                    onChange={(e) => setShowComplianceNote(e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <span className="text-[11px] font-bold text-slate-900">
+                    अंतिम अनुपालन वाक्य (Closing Compliance Note)
+                  </span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => setShowComplianceNote(!showComplianceNote)}
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                    showComplianceNote 
+                      ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                      : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                  }`}
+                >
+                  {showComplianceNote ? '✕ वाक्य हटाएं' : '+ वाक्य जोड़ें'}
+                </button>
+              </div>
+
+              {showComplianceNote ? (
+                <div className="space-y-1.5 pt-1">
+                  <input
+                    type="text"
+                    value={complianceNote}
+                    onChange={(e) => setComplianceNote(e.target.value)}
+                    placeholder="उदा. उक्त आदेश का तत्काल एवं कड़ाई से पालन सुनिश्चित किया जाए।"
+                    className="w-full px-2.5 py-1.5 border border-amber-300 bg-white rounded-lg text-xs font-medium text-slate-800 focus:ring-1 focus:ring-indigo-500"
+                  />
+                  <div className="flex flex-wrap gap-1 items-center text-[10px] text-slate-600">
+                    <span className="font-bold">विकल्प:</span>
+                    {[
+                      'उक्त आदेश का तत्काल एवं कड़ाई से पालन सुनिश्चित किया जाए।',
+                      'उक्त आदेश का अक्षरशः अनुपालन सुनिश्चित करें।',
+                      'कृपया इसे सर्वोच्च प्राथमिकता दें।'
+                    ].map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setComplianceNote(preset)}
+                        className="px-1.5 py-0.5 bg-white hover:bg-indigo-50 border border-slate-200 rounded text-slate-700 hover:text-indigo-700 cursor-pointer text-[10px]"
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-[10px] text-slate-500 italic bg-white/60 p-1.5 rounded border border-dashed border-slate-200">
+                  🚫 अनुपालन वाक्य हटा दिया गया है। पत्र में कोई अतिरिक्त वाक्य नहीं जुड़ेगा।
+                </div>
+              )}
             </div>
           </div>
 

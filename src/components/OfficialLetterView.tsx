@@ -1277,13 +1277,83 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
           </div>
         )}
 
-        {/* Mandatory closing instruction */}
-        <p 
-          className="mandatory-note text-xs md:text-sm font-semibold text-slate-900 mt-4 leading-normal"
-          style={{ fontSize: '13.5px', fontWeight: '600', color: '#0f172a', margin: '16px 0 0 0' }}
-        >
-          उक्त आदेश का तत्काल एवं कड़ाई से पालन सुनिश्चित किया जाए।
-        </p>
+        {/* Closing instruction / Compliance note (Customizable & Removable) */}
+        {isEditing ? (
+          <div 
+            className="compliance-note-edit mt-4 p-3 bg-amber-50/80 border border-amber-300 rounded-xl"
+            style={{ marginTop: '16px' }}
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={activeOrder.showComplianceNote !== false}
+                  onChange={(e) => handleFieldChange('showComplianceNote', e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-slate-900">
+                  अंतिम अनुपालन वाक्य (Closing Compliance Sentence)
+                </span>
+              </label>
+
+              <button
+                type="button"
+                onClick={() => handleFieldChange('showComplianceNote', !(activeOrder.showComplianceNote !== false))}
+                className={`text-[11px] font-bold px-2.5 py-0.5 rounded cursor-pointer transition-colors ${
+                  activeOrder.showComplianceNote !== false 
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                    : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                }`}
+              >
+                {activeOrder.showComplianceNote !== false ? '✕ इस वाक्य को हटाएं' : '+ वाक्य जोड़ें'}
+              </button>
+            </div>
+
+            {activeOrder.showComplianceNote !== false ? (
+              <div className="space-y-1.5">
+                <input
+                  type="text"
+                  value={activeOrder.complianceNote ?? 'उक्त आदेश का तत्काल एवं कड़ाई से पालन सुनिश्चित किया जाए।'}
+                  onChange={(e) => handleFieldChange('complianceNote', e.target.value)}
+                  placeholder="उदा. उक्त आदेश का तत्काल एवं कड़ाई से पालन सुनिश्चित किया जाए।"
+                  className="w-full px-2.5 py-1.5 border border-amber-300 bg-white rounded-lg text-xs font-semibold text-slate-900 focus:ring-1 focus:ring-indigo-500"
+                />
+                <div className="flex flex-wrap gap-1 items-center text-[10px] text-slate-600">
+                  <span className="font-bold">त्वरित विकल्प:</span>
+                  {[
+                    'उक्त आदेश का तत्काल एवं कड़ाई से पालन सुनिश्चित किया जाए।',
+                    'उक्त आदेश का अक्षरशः एवं समयबद्ध अनुपालन सुनिश्चित करें।',
+                    'कृपया इसे सर्वोच्च प्राथमिकता दी जाए।',
+                    'सक्षम प्राधिकार के अनुमोदनोपरांत यह आदेश निर्गत किया जाता है।'
+                  ].map((preset, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleFieldChange('complianceNote', preset)}
+                      className="px-1.5 py-0.5 bg-white hover:bg-indigo-50 border border-slate-200 rounded text-slate-700 hover:text-indigo-700 cursor-pointer truncate max-w-[220px]"
+                      title={preset}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-500 italic bg-white/70 p-2 rounded border border-dashed border-slate-300">
+                🚫 अनुपालन वाक्य को हटा दिया गया है। पत्र में कोई अतिरिक्त वाक्य नहीं छपेगा।
+              </div>
+            )}
+          </div>
+        ) : (
+          activeOrder.showComplianceNote !== false && (
+            <p 
+              className="mandatory-note text-xs md:text-sm font-semibold text-slate-900 mt-4 leading-normal"
+              style={{ fontSize: '13.5px', fontWeight: '600', color: '#0f172a', margin: '16px 0 0 0' }}
+            >
+              {activeOrder.complianceNote || 'उक्त आदेश का तत्काल एवं कड़ाई से पालन सुनिश्चित किया जाए।'}
+            </p>
+          )
+        )}
 
         {/* Primary Signatory Section (Strictly Right Aligned) */}
         <div 

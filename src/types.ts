@@ -65,6 +65,11 @@ export interface OfficeOrder {
   headerEmail?: string;
   headerLogoVariant?: 'bihar_seal' | 'shiksha_vibhag' | 'ashoka_emblem';
   headerLogoUrl?: string;
+  // Closing Compliance Note ("उक्त आदेश का तत्काल...")
+  showComplianceNote?: boolean; // Default true, can be unchecked/hidden
+  complianceNote?: string; // Custom compliance text or default
+  // Status: Draft vs Final Issued
+  status?: 'draft' | 'final';
   copyTo?: string[]; // प्रतिलिपि
   createdAt?: string;
   updatedAt?: string;
