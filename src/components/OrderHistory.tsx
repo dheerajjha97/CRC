@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { OfficeOrder, CrcProfile } from '../types';
 import { OfficialLetterView } from './OfficialLetterView';
-import { downloadOrderAsPdf, printOrderDirectly } from '../utils/pdfGenerator';
+import { downloadOrderAsPdf, printOrderDirectly, getOrderPdfFilename } from '../utils/pdfGenerator';
 import { 
   BookOpen, 
   Search, 
@@ -89,8 +89,8 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
     if (!selectedPreviewOrder) return;
     setIsDownloadingModalPdf(true);
     try {
-      const cleanName = selectedPreviewOrder.subject ? selectedPreviewOrder.subject.substring(0, 30).replace(/[^a-zA-Z0-9\u0900-\u097F]/g, '_') : 'Aadesh';
-      await downloadOrderAsPdf('history-modal-letter-document', `${selectedPreviewOrder.orderNumber || 'CRC_Order'}_${cleanName}.pdf`);
+      const pdfFilename = getOrderPdfFilename(selectedPreviewOrder.orderNumber, 'CRC_Office_Order');
+      await downloadOrderAsPdf('history-modal-letter-document', pdfFilename);
     } catch (err) {
       console.error('Download error:', err);
     } finally {
@@ -102,8 +102,8 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
     setSelectedPreviewOrder(order);
     setTimeout(async () => {
       try {
-        const cleanName = order.subject ? order.subject.substring(0, 30).replace(/[^a-zA-Z0-9\u0900-\u097F]/g, '_') : 'Aadesh';
-        await downloadOrderAsPdf('history-modal-letter-document', `${order.orderNumber || 'CRC_Order'}_${cleanName}.pdf`);
+        const pdfFilename = getOrderPdfFilename(order.orderNumber, 'CRC_Office_Order');
+        await downloadOrderAsPdf('history-modal-letter-document', pdfFilename);
       } catch (err) {
         console.error('Download error:', err);
       }

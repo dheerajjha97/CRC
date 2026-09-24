@@ -2,6 +2,27 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 /**
+ * Generates a clean, valid file system name based directly on the Letter Number / Order Number.
+ * Example: 'ज्ञापांक-102/2026' -> 'ज्ञापांक-102_2026.pdf'
+ */
+export function getOrderPdfFilename(letterNumber?: string, fallbackPrefix: string = 'Patrank_Order'): string {
+  if (!letterNumber || !letterNumber.trim()) {
+    const today = new Date().toISOString().split('T')[0];
+    return `${fallbackPrefix}_${today}.pdf`;
+  }
+
+  // Replace invalid OS filename characters while preserving Hindi Devnagari and numbers/letters
+  const sanitized = letterNumber
+    .trim()
+    .replace(/[\/\\?%*:|"<>]+/g, '_')
+    .replace(/\s+/g, '_')
+    .replace(/^[_\s-]+|[_\s-]+$/g, '');
+
+  const result = sanitized || fallbackPrefix;
+  return result.endsWith('.pdf') ? result : `${result}.pdf`;
+}
+
+/**
  * Downloads the official letter document as a high-resolution, perfectly-formatted A4 PDF.
  */
 export async function downloadOrderAsPdf(elementId: string, filename: string = 'Office_Order.pdf'): Promise<void> {

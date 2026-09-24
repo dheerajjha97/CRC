@@ -9,7 +9,7 @@ import {
 } from '../types';
 import { ORDER_TEMPLATES } from '../utils/orderTemplates';
 import { generateNextOrderNumber } from '../utils/orderNumberUtils';
-import { downloadOrderAsPdf, printOrderDirectly } from '../utils/pdfGenerator';
+import { downloadOrderAsPdf, printOrderDirectly, getOrderPdfFilename } from '../utils/pdfGenerator';
 import { OfficialLetterView } from './OfficialLetterView';
 import { MsWordEditor } from './MsWordEditor';
 import { 
@@ -482,8 +482,8 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
     try {
       // Auto-save to ensure letter is logged in Jawak Panji
       await handleSave('final', true);
-      const cleanName = subject ? subject.substring(0, 30).replace(/[^a-zA-Z0-9\u0900-\u097F]/g, '_') : 'Aadesh';
-      await downloadOrderAsPdf('official-letter-document', `${orderNumber || 'CRC_Order'}_${cleanName}.pdf`);
+      const pdfFilename = getOrderPdfFilename(orderNumber, 'CRC_Office_Order');
+      await downloadOrderAsPdf('official-letter-document', pdfFilename);
       setSaveToast(true);
       setTimeout(() => setSaveToast(false), 4000);
     } catch (err) {
