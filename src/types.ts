@@ -18,6 +18,18 @@ export interface SelectedTeacherInOrder {
   assignedDutyRole?: string; // विशिष्ट दायित्व (e.g. वीक्षक, मूल्यांकनकर्ता)
 }
 
+export interface CustomTableColumn {
+  id: string;
+  label: string;
+  width?: string;
+}
+
+export interface CustomTableData {
+  title?: string; // सारणी का शीर्षक (उदा. "समय सारणी", "सामग्री वितरण विवरण")
+  columns: string[]; // e.g. ["क्र.", "कक्षा", "विषय", "परीक्षा दिनांक", "समय"]
+  rows: string[][]; // e.g. [["1", "कक्षा 5", "गणित", "28/09/2026", "10:00 AM"]]
+}
+
 export interface ClusterSchool {
   id: string;
   name: string;
@@ -33,8 +45,10 @@ export interface OfficeOrder {
   subject: string; // विषय
   reference?: string; // प्रसंग / संदर्भ पत्र
   content: string; // मुख्य विवरण / आदेश
-  orderType: 'meeting' | 'deputation' | 'exam_duty' | 'training' | 'evaluation' | 'general' | 'inspection';
+  orderType: 'meeting' | 'deputation' | 'exam_duty' | 'training' | 'evaluation' | 'general' | 'inspection' | 'custom_table';
+  tableMode?: 'teachers' | 'custom' | 'both' | 'none'; // कौन सी सारणी दर्शानी है
   selectedTeachers: SelectedTeacherInOrder[];
+  customTable?: CustomTableData;
   meetingDate?: string;
   meetingTime?: string;
   meetingVenue?: string;
@@ -65,9 +79,11 @@ export interface CrcProfile {
 export interface OrderTemplate {
   id: string;
   name: string;
-  category: 'meeting' | 'deputation' | 'exam_duty' | 'training' | 'evaluation' | 'general' | 'inspection';
+  category: 'meeting' | 'deputation' | 'exam_duty' | 'training' | 'evaluation' | 'general' | 'inspection' | 'custom_table';
   subject: string;
   reference: string;
   content: string;
+  tableMode?: 'teachers' | 'custom' | 'both' | 'none';
+  customTable?: CustomTableData;
   copyTo: string[];
 }

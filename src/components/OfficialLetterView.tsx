@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { OfficeOrder, CrcProfile, SelectedTeacherInOrder } from '../types';
+import { OfficeOrder, CrcProfile, SelectedTeacherInOrder, CustomTableData } from '../types';
 import { BiharEducationLogo } from './BiharEducationLogo';
 import { 
   Edit3, 
@@ -7,7 +7,8 @@ import {
   Plus, 
   Trash2, 
   Sparkles, 
-  CheckCircle2
+  CheckCircle2,
+  Table as TableIcon
 } from 'lucide-react';
 
 interface OfficialLetterViewProps {
@@ -31,7 +32,7 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
   const [editableOrder, setEditableOrder] = useState<OfficeOrder>({ ...order });
   const [saveToast, setSaveToast] = useState(false);
 
-  // Sync internal state when external order prop changes (and not currently editing actively)
+  // Sync internal state when external order prop changes
   useEffect(() => {
     setEditableOrder({ ...order });
   }, [order]);
@@ -47,6 +48,7 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
     }
   };
 
+  // Teachers table operations
   const handleTeacherFieldChange = (
     index: number,
     field: keyof SelectedTeacherInOrder,
@@ -81,6 +83,77 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
     handleFieldChange('selectedTeachers', currentTeachers);
   };
 
+  // Custom Table operations
+  const handleCustomTableCellChange = (rowIndex: number, colIndex: number, value: string) => {
+    if (!editableOrder.customTable) return;
+    const currentTable: CustomTableData = JSON.parse(JSON.stringify(editableOrder.customTable));
+    if (!currentTable.rows[rowIndex]) currentTable.rows[rowIndex] = [];
+    currentTable.rows[rowIndex][colIndex] = value;
+    handleFieldChange('customTable', currentTable);
+  };
+
+  const handleCustomTableHeaderChange = (colIndex: number, value: string) => {
+    if (!editableOrder.customTable) return;
+    const currentTable: CustomTableData = JSON.parse(JSON.stringify(editableOrder.customTable));
+    currentTable.columns[colIndex] = value;
+    handleFieldChange('customTable', currentTable);
+  };
+
+  const handleCustomTableTitleChange = (value: string) => {
+    if (!editableOrder.customTable) return;
+    const currentTable: CustomTableData = { ...editableOrder.customTable, title: value };
+    handleFieldChange('customTable', currentTable);
+  };
+
+  const handleAddCustomTableRow = () => {
+    const currentTable: CustomTableData = editableOrder.customTable 
+      ? JSON.parse(JSON.stringify(editableOrder.customTable))
+      : {
+          title: 'विवरणी सारणी',
+          columns: ['क्र.', 'विवरण / मद', 'मात्रा / संख्या', 'टिप्पणी / रिमार्क'],
+          rows: []
+        };
+
+    const newRow = currentTable.columns.map((_, idx) => (idx === 0 ? `${currentTable.rows.length + 1}` : ''));
+    currentTable.rows.push(newRow);
+    handleFieldChange('customTable', currentTable);
+  };
+
+  const handleDeleteCustomTableRow = (rowIndex: number) => {
+    if (!editableOrder.customTable) return;
+    const currentTable: CustomTableData = JSON.parse(JSON.stringify(editableOrder.customTable));
+    currentTable.rows.splice(rowIndex, 1);
+    // Auto re-number the first column if it looks like numbers
+    currentTable.rows.forEach((row, i) => {
+      if (/^\d+$/.test(row[0] || '')) {
+        row[0] = `${i + 1}`;
+      }
+    });
+    handleFieldChange('customTable', currentTable);
+  };
+
+  const handleAddCustomTableColumn = () => {
+    const currentTable: CustomTableData = editableOrder.customTable 
+      ? JSON.parse(JSON.stringify(editableOrder.customTable))
+      : {
+          title: 'विवरणी सारणी',
+          columns: ['क्र.', 'विवरण'],
+          rows: [['1', '']]
+        };
+
+    currentTable.columns.push(`कॉलम ${currentTable.columns.length + 1}`);
+    currentTable.rows.forEach(row => row.push(''));
+    handleFieldChange('customTable', currentTable);
+  };
+
+  const handleDeleteCustomTableColumn = (colIndex: number) => {
+    if (!editableOrder.customTable || editableOrder.customTable.columns.length <= 1) return;
+    const currentTable: CustomTableData = JSON.parse(JSON.stringify(editableOrder.customTable));
+    currentTable.columns.splice(colIndex, 1);
+    currentTable.rows.forEach(row => row.splice(colIndex, 1));
+    handleFieldChange('customTable', currentTable);
+  };
+
   const defaultCopies = [
     `जिला शिक्षा पदाधिकारी / जिला शिक्षा अधिकारी, जिला - ${profile.districtName || 'मुजफ्फरपुर'} की ओर सादर सूचनार्थ।`,
     `प्रखंड शिक्षा पदाधिकारी / विकासखंड शिक्षा अधिकारी (BEO), प्रखंड/विकासखंड - ${profile.blockName || 'गायघाट'} की ओर सादर सूचनार्थ।`,
@@ -110,7 +183,6 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
 
   const handleToggleEdit = () => {
     if (isEditing) {
-      // Saving and exiting edit mode
       setIsEditing(false);
       setSaveToast(true);
       setTimeout(() => setSaveToast(false), 3500);
@@ -159,6 +231,11 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
   const copyToList = activeOrder.copyTo !== undefined ? activeOrder.copyTo : defaultCopies;
   const showCopyTo = copyToList && copyToList.length > 0;
 
+  // Table display decisions
+  const tableMode = activeOrder.tableMode || (activeOrder.customTable ? 'custom' : (teachers.length > 0 ? 'teachers' : 'none'));
+  const showTeachersTable = (tableMode === 'teachers' || tableMode === 'both') && (teachers.length > 0 || isEditing);
+  const showCustomTable = (tableMode === 'custom' || tableMode === 'both' || (activeOrder.customTable && tableMode !== 'none')) && (activeOrder.customTable || isEditing);
+
   return (
     <div className="relative group/letter">
       {/* Inline Editing Control Toolbar (Hidden in Print and PDF) */}
@@ -191,110 +268,111 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
             {isEditing && (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200">
                 <Sparkles className="w-3 h-3 text-amber-600 animate-pulse" />
-                पत्र में किसी भी टेक्स्ट पर क्लिक करके सीधे टाइप करें
+                पत्र में किसी भी टेक्स्ट या तालिका पर सीधे क्लिक करके टाइप करें
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-2 text-xs">
             {saveToast && (
-              <span className="flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-300 animate-in fade-in">
+              <span className="flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-300 animate-in fade-in">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                बदलाव सुरक्षित हो गए!
+                बदलाव सुरक्षित हो गए
               </span>
             )}
-            <span className="text-[11px] text-slate-500 hidden sm:inline">
-              {isEditing ? 'लाइव एडिट मोड सक्रिय' : 'प्रिंट / A4 प्रिव्यू मोड'}
+            <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+              A4 पोर्ट्रेट शासकीय प्रारूप
             </span>
           </div>
         </div>
       )}
 
-      {/* Main Official Document Layout */}
+      {/* Official A4 Government Document Container */}
       <div
         id={id}
-        className={`official-letter-page bg-white text-slate-900 border border-slate-300 rounded shadow-md mx-auto print:shadow-none print:border-none print:m-0 font-['Mukta','Noto_Sans_Devanagari',sans-serif] ${
-          isPrintPreview ? 'p-6 md:p-10 max-w-[850px] min-h-[1100px]' : 'p-8 md:p-12 max-w-[850px] min-h-[1120px]'
-        } ${isEditing ? 'ring-2 ring-amber-400 bg-amber-50/10' : ''}`}
+        className={`bg-white text-slate-900 border border-slate-300 shadow-sm mx-auto overflow-hidden font-['Mukta',sans-serif] ${
+          isPrintPreview ? 'max-w-none shadow-none border-none p-0' : 'max-w-[850px] p-8 md:p-12'
+        }`}
         style={{
           boxSizing: 'border-box',
-          fontFamily: "'Mukta', 'Noto Sans Devanagari', 'Segoe UI', Tahoma, sans-serif",
-          lineHeight: 1.65,
+          minHeight: '1080px',
+          backgroundColor: '#ffffff',
           color: '#0f172a',
-          backgroundColor: '#ffffff'
+          lineHeight: '1.6',
+          fontFamily: "'Mukta', sans-serif"
         }}
       >
-        {/* State / Education Department Emblem & CRC Letterhead */}
+        {/* Top Official Letterhead */}
         <div 
-          className="letterhead-header text-center border-b-2 border-slate-900 pb-3.5 mb-4"
-          style={{ borderBottom: '2px solid #0f172a', paddingBottom: '14px', marginBottom: '16px', textAlign: 'center' }}
+          className="letterhead-header border-b-2 border-slate-900 pb-3 mb-4 flex items-center justify-between gap-4"
+          style={{ 
+            borderBottom: '2.5px solid #0f172a', 
+            paddingBottom: '12px', 
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}
         >
-          <div 
-            className="flex items-center justify-center gap-3.5 mb-1.5"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', marginBottom: '6px' }}
-          >
-            {/* Official Emblem */}
+          {/* Official Emblem Logo */}
+          <div className="shrink-0 flex items-center justify-center">
             <BiharEducationLogo 
-              size={58} 
-              customUrl={profile.logoUrl} 
-              variant={profile.logoVariant || 'shiksha_vibhag'}
-              className="shrink-0" 
+              variant={profile.logoVariant || 'bihar_seal'} 
+              size={72} 
+              className="print:w-16 print:h-16" 
             />
-
-            <div>
-              <div className="text-[11px] font-bold tracking-wider text-slate-700 uppercase" style={{ fontSize: '11px', letterSpacing: '1px', color: '#475569', marginBottom: '1px' }}>
-                शिक्षा विभाग • बिहार सरकार
-              </div>
-              <h1 
-                className="text-lg md:text-xl font-bold tracking-tight text-slate-950 leading-tight"
-                style={{ fontSize: '19px', fontWeight: 'bold', color: '#020617', margin: 0, lineHeight: 1.3 }}
-              >
-                कार्यालय संकुल प्राचार्य / समन्वयक
-              </h1>
-              <h2 
-                className="text-base md:text-lg font-bold text-slate-900"
-                style={{ fontSize: '16px', fontWeight: 'bold', color: '#0f172a', margin: '2px 0 0 0' }}
-              >
-                {clusterTitle}
-              </h2>
-            </div>
           </div>
 
-          <p 
-            className="text-xs md:text-sm text-slate-700 font-medium"
-            style={{ fontSize: '13px', color: '#334155', margin: '3px 0 0 0' }}
-          >
-            प्रखंड / विकासखंड: <strong style={{ color: '#0f172a' }}>{profile.blockName || 'गायघाट'}</strong>, 
-            जिला: <strong style={{ color: '#0f172a' }}>{profile.districtName || 'मुजफ्फरपुर'}</strong> ({profile.stateName || 'बिहार'})
-          </p>
-          
-          {(profile.phone || profile.email) && (
+          {/* Letterhead Text Center Aligned */}
+          <div className="flex-1 text-center px-2">
             <p 
-              className="text-[11px] text-slate-600 mt-0.5"
-              style={{ fontSize: '11.5px', color: '#475569', margin: '2px 0 0 0' }}
+              className="text-xs md:text-sm font-semibold text-slate-700 tracking-wider uppercase mb-0.5"
+              style={{ fontSize: '12px', fontWeight: '600', color: '#334155', letterSpacing: '1px', margin: 0 }}
             >
-              {profile.phone ? `दूरभाष: ${profile.phone}` : ''} 
-              {profile.phone && profile.email ? ' | ' : ''}
-              {profile.email ? `ईमेल: ${profile.email}` : ''}
+              कार्यालय संकुल समन्वयक / प्राचार्य
             </p>
-          )}
+            <h1 
+              className="text-lg md:text-xl font-black text-slate-950 tracking-wide mb-0.5"
+              style={{ fontSize: '19px', fontWeight: '900', color: '#020617', margin: '2px 0' }}
+            >
+              {clusterTitle}
+            </h1>
+            <p 
+              className="text-xs md:text-sm font-bold text-slate-800 mb-0.5"
+              style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0 }}
+            >
+              प्रखंड/विकासखंड: {profile.blockName || 'गायघाट'}, जिला: {profile.districtName || 'मुजफ्फरपुर'} ({profile.stateName || 'बिहार'})
+            </p>
+            <p 
+              className="text-[11px] text-slate-600 font-medium"
+              style={{ fontSize: '11px', color: '#475569', margin: 0 }}
+            >
+              {profile.officeAddress || 'संकुल संसाधन केंद्र, शिक्षा विभाग'}
+              {profile.phone ? ` | दूरभाष: ${profile.phone}` : ''}
+              {profile.email ? ` | ई-मेल: ${profile.email}` : ''}
+            </p>
+          </div>
+
+          {/* Right Logo Spacer for perfect symmetry */}
+          <div className="shrink-0 flex items-center justify-center opacity-0 pointer-events-none w-[72px]" aria-hidden="true">
+            <BiharEducationLogo size={72} />
+          </div>
         </div>
 
-        {/* Dispatch Number and Date Bar */}
+        {/* Dispatch Order Number & Date Bar */}
         <div 
-          className="dispatch-bar flex flex-wrap items-center justify-between text-xs md:text-sm font-semibold border-b border-slate-300 pb-2 mb-4"
+          className="dispatch-bar flex items-center justify-between text-xs md:text-sm font-bold text-slate-900 border-b border-slate-300 pb-2 mb-4"
           style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
-            alignItems: 'center', 
             borderBottom: '1px solid #cbd5e1', 
             paddingBottom: '8px', 
-            marginBottom: '16px',
-            fontSize: '13.5px'
+            marginBottom: '14px',
+            fontSize: '13.5px' 
           }}
         >
           <div style={{ fontWeight: '600', color: '#0f172a' }} className="flex items-center gap-1">
-            <span>पत्र क्रमांक / आदेश :</span>{' '}
+            <span>पत्र क्रमांक :</span>{' '}
             {isEditing ? (
               <input
                 type="text"
@@ -450,57 +528,59 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
               isEditing ? 'border-dashed border-amber-400 bg-amber-50/40 p-3' : ''
             }`}
             style={{ 
-              backgroundColor: isEditing ? '#fefce8' : '#f8fafc', 
-              border: isEditing ? '1px dashed #f59e0b' : '1px solid #cbd5e1', 
+              backgroundColor: '#f8fafc', 
+              border: '1px solid #cbd5e1', 
               borderRadius: '6px', 
               padding: '10px 14px', 
-              marginBottom: '18px', 
+              marginBottom: '16px',
               fontSize: '13px'
             }}
           >
             {isEditing ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">नियत तिथि</label>
-                  <input
-                    type="text"
-                    value={activeOrder.meetingDate || ''}
-                    onChange={(e) => handleFieldChange('meetingDate', e.target.value)}
-                    placeholder="उदा. 25/09/2026"
-                    className="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">समय</label>
-                  <input
-                    type="text"
-                    value={activeOrder.meetingTime || ''}
-                    onChange={(e) => handleFieldChange('meetingTime', e.target.value)}
-                    placeholder="उदा. प्रातः 11:00 बजे"
-                    className="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">स्थान / वेन्यू</label>
-                  <input
-                    type="text"
-                    value={activeOrder.meetingVenue || ''}
-                    onChange={(e) => handleFieldChange('meetingVenue', e.target.value)}
-                    placeholder="उदा. संकुल संसाधन केंद्र सभागार"
-                    className="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs"
-                  />
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-amber-900">बैठक / कार्यक्रम विवरण (वैकल्पिक) :</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-slate-600">दिनांक</label>
+                    <input
+                      type="date"
+                      value={activeOrder.meetingDate || ''}
+                      onChange={(e) => handleFieldChange('meetingDate', e.target.value)}
+                      className="w-full px-2 py-1 border border-amber-300 rounded text-xs bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-600">समय</label>
+                    <input
+                      type="text"
+                      value={activeOrder.meetingTime || ''}
+                      onChange={(e) => handleFieldChange('meetingTime', e.target.value)}
+                      placeholder="उदा. 11:00 AM"
+                      className="w-full px-2 py-1 border border-amber-300 rounded text-xs bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-600">स्थान</label>
+                    <input
+                      type="text"
+                      value={activeOrder.meetingVenue || ''}
+                      onChange={(e) => handleFieldChange('meetingVenue', e.target.value)}
+                      placeholder="उदा. संकुल सभागार"
+                      className="w-full px-2 py-1 border border-amber-300 rounded text-xs bg-white"
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-slate-800">
                 {activeOrder.meetingDate && (
-                  <div style={{ marginBottom: '4px' }}>
-                    <strong style={{ color: '#0f172a' }}>नियत तिथि: </strong>
-                    <span>{activeOrder.meetingDate}</span>
+                  <div>
+                    <strong style={{ color: '#0f172a' }}>दिनांक: </strong>
+                    <span>{new Date(activeOrder.meetingDate).toLocaleDateString('hi-IN')}</span>
                   </div>
                 )}
                 {activeOrder.meetingTime && (
-                  <div style={{ marginBottom: '4px' }}>
+                  <div>
                     <strong style={{ color: '#0f172a' }}>समय: </strong>
                     <span>{activeOrder.meetingTime}</span>
                   </div>
@@ -516,8 +596,169 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
           </div>
         )}
 
-        {/* Teachers List Table Section */}
-        {(teachers.length > 0 || isEditing) && (
+        {/* 1. CUSTOM DYNAMIC TABLE SECTION (कस्टम तालिका / समय-सारणी / वितरण विवरण आदि) */}
+        {showCustomTable && activeOrder.customTable && (
+          <div className="custom-table-section my-5" style={{ margin: '18px 0' }}>
+            <div className="flex items-center justify-between mb-2">
+              <div 
+                className="text-xs md:text-sm font-bold text-slate-950 flex items-center gap-1.5"
+                style={{ fontSize: '14px', fontWeight: 'bold', color: '#020617' }}
+              >
+                <TableIcon className="w-4 h-4 text-indigo-600 shrink-0 print:hidden" />
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={activeOrder.customTable.title || 'विवरणी सारणी'}
+                    onChange={(e) => handleCustomTableTitleChange(e.target.value)}
+                    placeholder="सारणी का शीर्षक लिखें..."
+                    className="px-2 py-0.5 border border-amber-400 bg-amber-50 rounded text-xs font-bold text-slate-900"
+                  />
+                ) : (
+                  <span>{activeOrder.customTable.title ? `${activeOrder.customTable.title} :` : 'विवरणी तालिका :'}</span>
+                )}
+              </div>
+
+              {isEditing && (
+                <div className="print:hidden flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleAddCustomTableRow}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2 py-1 rounded border border-indigo-200 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    + पंक्ति (Row)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddCustomTableColumn}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 px-2 py-1 rounded border border-slate-300 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    + कॉलम (Col)
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Custom Table Content */}
+            <div className="overflow-x-auto">
+              <table 
+                className="w-full border-collapse border border-slate-700 text-xs md:text-[13.5px] text-left"
+                style={{ 
+                  width: '100%', 
+                  borderCollapse: 'collapse', 
+                  border: '1.5px solid #1e293b', 
+                  fontSize: '13px',
+                  textAlign: 'left',
+                  margin: '8px 0'
+                }}
+              >
+                <thead>
+                  <tr 
+                    className="bg-slate-100 text-slate-950 font-bold border-b border-slate-700"
+                    style={{ backgroundColor: '#f1f5f9', color: '#020617', fontWeight: 'bold', borderBottom: '1.5px solid #1e293b' }}
+                  >
+                    {activeOrder.customTable.columns.map((col, cIdx) => (
+                      <th 
+                        key={cIdx} 
+                        style={{ 
+                          border: '1px solid #334155', 
+                          padding: '7px 8px', 
+                          textAlign: cIdx === 0 ? 'center' : 'left',
+                          width: cIdx === 0 ? '42px' : 'auto'
+                        }}
+                      >
+                        {isEditing ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={col}
+                              onChange={(e) => handleCustomTableHeaderChange(cIdx, e.target.value)}
+                              className="w-full px-1 py-0.5 border border-amber-300 bg-amber-50 rounded text-xs font-bold"
+                            />
+                            {activeOrder.customTable!.columns.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCustomTableColumn(cIdx)}
+                                className="text-red-500 hover:text-red-700 p-0.5"
+                                title="कॉलम हटाएं"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          col
+                        )}
+                      </th>
+                    ))}
+                    {isEditing && (
+                      <th className="print:hidden" style={{ border: '1px solid #334155', padding: '7px 8px', width: '45px', textAlign: 'center' }}>
+                        हटाएं
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeOrder.customTable.rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={activeOrder.customTable.columns.length + (isEditing ? 1 : 0)} className="text-center py-4 text-slate-400 text-xs italic">
+                        कोई डेटा उपलब्ध नहीं है। पंक्ति जोड़ने हेतु '+ पंक्ति' बटन दबाएं।
+                      </td>
+                    </tr>
+                  ) : (
+                    activeOrder.customTable.rows.map((row, rIdx) => (
+                      <tr 
+                        key={rIdx} 
+                        className="hover:bg-slate-50"
+                        style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
+                      >
+                        {activeOrder.customTable!.columns.map((_, cIdx) => (
+                          <td 
+                            key={cIdx} 
+                            style={{ 
+                              border: '1px solid #334155', 
+                              padding: '6px 8px', 
+                              textAlign: cIdx === 0 ? 'center' : 'left',
+                              fontWeight: cIdx === 0 ? '600' : 'normal',
+                              color: '#0f172a'
+                            }}
+                          >
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={row[cIdx] || ''}
+                                onChange={(e) => handleCustomTableCellChange(rIdx, cIdx, e.target.value)}
+                                className="w-full px-1.5 py-0.5 border border-amber-300 bg-amber-50 rounded text-xs"
+                              />
+                            ) : (
+                              row[cIdx] || '—'
+                            )}
+                          </td>
+                        ))}
+                        {isEditing && (
+                          <td className="print:hidden text-center" style={{ border: '1px solid #334155', padding: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCustomTableRow(rIdx)}
+                              className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded cursor-pointer"
+                              title="पंक्ति हटाएं"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* 2. TEACHERS LIST TABLE SECTION */}
+        {showTeachersTable && (
           <div className="teachers-table-section my-5" style={{ margin: '18px 0' }}>
             <div className="flex items-center justify-between mb-2">
               <div 
@@ -758,100 +999,84 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
             marginTop: '28px', 
             display: 'flex', 
             justifyContent: 'flex-end', 
-            width: '100%',
-            pageBreakInside: 'avoid',
-            breakInside: 'avoid'
+            textAlign: 'right' 
           }}
         >
           <div 
-            className="text-center min-w-[240px]"
-            style={{ 
-              textAlign: 'center', 
-              minWidth: '240px', 
-              marginLeft: 'auto',
-              display: 'inline-block'
-            }}
+            className="text-right min-w-[220px]"
+            style={{ textAlign: 'right', display: 'inline-block' }}
           >
             <div 
-              className="h-12 flex items-end justify-center"
-              style={{ height: '45px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+              className="h-10 border-b border-dashed border-slate-300 mb-1 flex items-end justify-end"
+              style={{ height: '36px', borderBottom: '1px dashed #cbd5e1', marginBottom: '4px' }}
             >
-              <span style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
-                (हस्ताक्षरित)
-              </span>
+              <span className="text-[10px] text-slate-400 italic print:hidden">हस्ताक्षर एवं पदमुद्रा</span>
             </div>
-            
+
             {isEditing ? (
-              <div className="space-y-1 mt-1">
+              <div className="space-y-1 text-right">
                 <input
                   type="text"
                   value={activeOrder.signatoryName || ''}
                   onChange={(e) => handleFieldChange('signatoryName', e.target.value)}
                   placeholder="हस्ताक्षरकर्ता का नाम"
-                  className="w-full px-2 py-0.5 border border-amber-300 bg-amber-50 rounded text-xs font-bold text-center"
+                  className="w-full px-1.5 py-0.5 border border-amber-300 bg-amber-50 rounded text-xs font-bold text-right"
                 />
                 <input
                   type="text"
                   value={activeOrder.signatoryDesignation || ''}
                   onChange={(e) => handleFieldChange('signatoryDesignation', e.target.value)}
                   placeholder="पदनाम"
-                  className="w-full px-2 py-0.5 border border-amber-300 bg-amber-50 rounded text-xs font-semibold text-center"
+                  className="w-full px-1.5 py-0.5 border border-amber-300 bg-amber-50 rounded text-xs text-right"
                 />
               </div>
             ) : (
               <>
-                <div 
-                  className="border-t border-slate-500 pt-1 text-xs md:text-sm font-bold text-slate-950"
-                  style={{ borderTop: '1px solid #475569', paddingTop: '4px', fontSize: '14px', fontWeight: 'bold', color: '#020617' }}
+                <p 
+                  className="text-xs md:text-sm font-bold text-slate-950"
+                  style={{ fontSize: '13.5px', fontWeight: 'bold', color: '#020617', margin: 0 }}
                 >
-                  {primarySignatoryName}
-                </div>
-                <div 
-                  className="text-[11.5px] md:text-xs text-slate-800 font-semibold"
-                  style={{ fontSize: '12px', fontWeight: '600', color: '#1e293b' }}
+                  ({primarySignatoryName})
+                </p>
+                <p 
+                  className="text-xs text-slate-800 font-semibold"
+                  style={{ fontSize: '12px', fontWeight: '600', color: '#1e293b', margin: 0 }}
                 >
                   {primarySignatoryDesignation}
-                </div>
+                </p>
+                <p 
+                  className="text-[11px] text-slate-700 font-medium"
+                  style={{ fontSize: '11px', color: '#334155', margin: 0 }}
+                >
+                  {clusterTitle}, {profile.blockName || 'गायघाट'}
+                </p>
               </>
             )}
-
-            <div 
-              className="text-[11px] text-slate-600"
-              style={{ fontSize: '11px', color: '#475569' }}
-            >
-              {clusterTitle}
-            </div>
           </div>
         </div>
 
-        {/* Dispatch Copy To / प्रतिलिपि Section */}
+        {/* Endorsement / Copy To (पृष्ठांकन / प्रतिलिपि) Section */}
         {showCopyTo && (
           <div 
-            className="endorsement-copy-to-block mt-7 pt-4 border-t border-slate-300 text-xs md:text-[13px] text-slate-900"
+            className="copy-to-section mt-6 pt-4 border-t border-slate-400"
             style={{ 
-              marginTop: '24px', 
-              paddingTop: '14px', 
-              borderTop: '1px solid #cbd5e1', 
-              fontSize: '12.5px', 
-              color: '#0f172a',
-              pageBreakInside: 'avoid',
-              breakInside: 'avoid'
+              marginTop: '22px', 
+              paddingTop: '12px', 
+              borderTop: '1.5px solid #64748b' 
             }}
           >
             <div 
-              className="flex justify-between items-center mb-1.5 font-semibold"
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', fontWeight: '600' }}
+              className="flex justify-between text-xs md:text-[13px] font-bold text-slate-950 mb-2"
+              style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '8px', fontSize: '12.5px' }}
             >
-              <span style={{ fontWeight: 'bold' }}>
-                पृ. क्रमांक / सं.सं.के. / प्रतिलिपि / 2026 / __________
-              </span>
-              <span>दिनांक : {formattedDate}</span>
+              <span>पृष्ठांकन क्रमांक: {activeOrder.orderNumber || 'क्र./CRC/2026/01'}</span>
+              <span>दिनांक: {formattedDate}</span>
             </div>
 
             <div className="flex items-center justify-between mb-1.5">
               <p 
-                className="font-bold text-slate-950"
-                style={{ fontWeight: 'bold', color: '#020617', margin: 0 }}
+                className="text-xs md:text-sm font-bold text-slate-950 underline decoration-slate-400"
+                style={{ fontSize: '13px', fontWeight: 'bold', color: '#020617', textDecoration: 'underline' }}
               >
                 प्रतिलिपि सूचनार्थ एवं आवश्यक कार्रवाई हेतु प्रेषित :
               </p>
@@ -859,75 +1084,70 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
                 <button
                   type="button"
                   onClick={handleAddCopyRow}
-                  className="print:hidden inline-flex items-center gap-1 text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded border border-amber-300 cursor-pointer"
+                  className="print:hidden inline-flex items-center gap-1 text-[11px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 cursor-pointer"
                 >
-                  <Plus className="w-2.5 h-2.5" />
-                  प्रतिलिपि जोड़ें
+                  <Plus className="w-3 h-3" />
+                  + प्रतिलिपि पंक्ति
                 </button>
               )}
             </div>
 
             <ol 
-              className="list-decimal list-inside space-y-1 text-slate-800 pl-1"
-              style={{ listStyleType: 'decimal', paddingLeft: '6px', margin: '4px 0', lineHeight: 1.6 }}
+              className="list-decimal list-outside pl-5 space-y-1 text-xs md:text-[13px] text-slate-800"
+              style={{ paddingLeft: '20px', margin: '4px 0', fontSize: '12.5px', lineHeight: '1.5', color: '#1e293b' }}
             >
-              {copyToList.map((cp, i) => (
-                <li key={i} style={{ marginBottom: '3px' }} className="group/item">
+              {copyToList.map((item, idx) => (
+                <li key={idx} style={{ marginBottom: '3px' }}>
                   {isEditing ? (
-                    <div className="inline-flex items-center gap-1.5 w-[94%]">
+                    <div className="flex items-center gap-1">
                       <input
                         type="text"
-                        value={cp}
-                        onChange={(e) => handleCopyToChange(i, e.target.value)}
-                        className="w-full px-2 py-0.5 border border-amber-300 bg-amber-50 rounded text-xs"
+                        value={item}
+                        onChange={(e) => handleCopyToChange(idx, e.target.value)}
+                        className="w-full px-1.5 py-0.5 border border-amber-300 bg-amber-50 rounded text-xs"
                       />
                       <button
                         type="button"
-                        onClick={() => handleDeleteCopyRow(i)}
-                        className="p-1 text-red-500 hover:bg-red-50 rounded cursor-pointer"
-                        title="हटाएं"
+                        onClick={() => handleDeleteCopyRow(idx)}
+                        className="p-1 text-red-500 hover:text-red-700 rounded cursor-pointer shrink-0"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
                   ) : (
-                    <span>{cp}</span>
+                    item
                   )}
                 </li>
               ))}
             </ol>
 
-            {/* Secondary Signatory for Endorsement / प्रतिलिपि (Right Aligned) */}
+            {/* Endorsement Secondary Signatory */}
             <div 
-              className="mt-6 flex justify-end"
-              style={{ 
-                marginTop: '22px', 
-                display: 'flex', 
-                justifyContent: 'flex-end', 
-                width: '100%' 
-              }}
+              className="endorsement-signatory mt-6 flex justify-end"
+              style={{ marginTop: '22px', display: 'flex', justifyContent: 'flex-end', textAlign: 'right' }}
             >
               <div 
-                className="text-center min-w-[220px]"
-                style={{ 
-                  textAlign: 'center', 
-                  minWidth: '220px', 
-                  marginLeft: 'auto',
-                  display: 'inline-block'
-                }}
+                className="text-right min-w-[200px]"
+                style={{ textAlign: 'right', display: 'inline-block' }}
               >
-                <div 
-                  className="border-t border-slate-400 pt-1 text-xs font-bold text-slate-900"
-                  style={{ borderTop: '1px solid #64748b', paddingTop: '4px', fontSize: '13px', fontWeight: 'bold', color: '#0f172a' }}
+                <p 
+                  className="text-xs md:text-sm font-bold text-slate-950"
+                  style={{ fontSize: '13px', fontWeight: 'bold', color: '#020617', margin: 0 }}
+                >
+                  ({primarySignatoryName})
+                </p>
+                <p 
+                  className="text-xs text-slate-800 font-semibold"
+                  style={{ fontSize: '11.5px', fontWeight: '600', color: '#1e293b', margin: 0 }}
                 >
                   {primarySignatoryDesignation}
-                </div>
-                <div 
-                  className="text-[11px] text-slate-600"
-                  style={{ fontSize: '11px', color: '#475569' }}
+                </p>
+                <p 
+                  className="text-[11px] text-slate-700 font-medium"
+                  style={{ fontSize: '11px', color: '#334155', margin: 0 }}
                 >
-                  {clusterTitle}
-                </div>
+                  {clusterTitle}, {profile.blockName || 'गायघाट'}
+                </p>
               </div>
             </div>
           </div>

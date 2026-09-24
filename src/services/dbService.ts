@@ -6,11 +6,10 @@ import {
   setDoc,
   addDoc,
   updateDoc,
-  deleteDoc,
-  writeBatch
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Teacher, OfficeOrder, CrcProfile, ClusterSchool } from '../types';
+import { Teacher, OfficeOrder, CrcProfile, ClusterSchool, CustomTableData } from '../types';
 
 export const DEFAULT_CRC_PROFILE: CrcProfile = {
   clusterName: 'संकुल संसाधन केंद्र (CRC)',
@@ -27,30 +26,28 @@ export const DEFAULT_CRC_PROFILE: CrcProfile = {
   defaultDesignation: 'प्राचार्य / संकुल समन्वयक'
 };
 
-export const DEMO_TEACHER_NAMES = [
-  'श्री राजेश कुमार साहू',
-  'श्रीमती सुनीता शर्मा',
-  'श्री अनिल कुमार देवांगन',
-  'सुश्री नीलम सिंह',
-  'श्री मनोज कुमार वर्मा',
-  'श्रीमती कंचन लता मिंज'
-];
-
-export const DEMO_SCHOOL_NAMES = [
-  'शासकीय प्राथमिक शाला, नयापारा',
-  'शासकीय प्राथमिक शाला, पटेलपारा',
-  'शासकीय पूर्व माध्यमिक शाला, रामपुर',
-  'शासकीय कन्या पूर्व माध्यमिक शाला',
-  'शासकीय उच्चतर माध्यमिक विद्यालय संकुल केंद्र'
-];
-
-export const DEMO_UDISE_CODES = [
-  '22100401201',
-  '22100401202',
-  '22100401203',
-  '22100401204',
-  '22100401205'
-];
+/**
+ * Deeply cleans any undefined values before sending to Firestore
+ * Firestore rejects documents containing `undefined` values with an exception.
+ */
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === undefined || data === null) {
+    return '' as unknown as T;
+  }
+  if (Array.isArray(data)) {
+    return data.map(item => sanitizeForFirestore(item)) as unknown as T;
+  }
+  if (typeof data === 'object') {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        cleaned[key] = sanitizeForFirestore(value);
+      }
+    }
+    return cleaned as T;
+  }
+  return data;
+}
 
 // TEACHERS
 export async function getTeachersFromDb(): Promise<Teacher[]> {
@@ -86,10 +83,10 @@ export async function getTeachersFromDb(): Promise<Teacher[]> {
 }
 
 export async function addTeacherToDb(teacher: Omit<Teacher, 'id'>): Promise<string> {
-  const newTeacherData = {
+  const newTeacherData = sanitizeForFirestore({
     ...teacher,
     createdAt: new Date().toISOString()
-  };
+  });
   
   let docId = `teacher_${Date.now()}`;
   try {
@@ -112,16 +109,17 @@ export async function addTeacherToDb(teacher: Omit<Teacher, 'id'>): Promise<stri
 }
 
 export async function updateTeacherInDb(id: string, data: Partial<Teacher>): Promise<void> {
+  const sanitized = sanitizeForFirestore(data);
   try {
     const docRef = doc(db, 'teachers', id);
-    await updateDoc(docRef, { ...data });
+    await updateDoc(docRef, sanitized);
   } catch (err) {
     console.warn('Firestore updateTeacher error:', err);
   }
 
   try {
     const current = await getTeachersFromDb();
-    const updated = current.map(t => (t.id === id ? { ...t, ...data } : t));
+    const updated = current.map(t => (t.id === id ? { ...t, ...sanitized } : t));
     localStorage.setItem('crc_teachers', JSON.stringify(updated));
   } catch (e) {
     console.error(e);
@@ -153,7 +151,6 @@ export async function getOrdersFromDb(): Promise<OfficeOrder[]> {
 
   for (const colName of collectionsToCheck) {
     try {
-      // Direct getDocs without orderBy to ensure documents missing 'createdAt' field are NOT filtered out by Firestore
       const snapshot = await getDocs(collection(db, colName));
       snapshot.docs.forEach(d => {
         const data = d.data();
@@ -165,10 +162,12 @@ export async function getOrdersFromDb(): Promise<OfficeOrder[]> {
           reference: data.reference || data.prasang || '',
           content: data.content || data.body || data.description || '',
           orderType: data.orderType || data.type || 'meeting',
+          tableMode: data.tableMode || (data.customTable ? 'custom' : (data.selectedTeachers && data.selectedTeachers.length > 0 ? 'teachers' : 'none')),
+          selectedTeachers: data.selectedTeachers || data.teachers || [],
+          customTable: data.customTable || undefined,
           meetingDate: data.meetingDate || data.scheduleDate || '',
           meetingTime: data.meetingTime || data.scheduleTime || '',
           meetingVenue: data.meetingVenue || data.venue || '',
-          selectedTeachers: data.selectedTeachers || data.teachers || [],
           signatoryName: data.signatoryName || data.signatory || '',
           signatoryDesignation: data.signatoryDesignation || data.designation || '',
           copyTo: data.copyTo || data.endorsements || []
@@ -183,7 +182,7 @@ export async function getOrdersFromDb(): Promise<OfficeOrder[]> {
     }
   }
 
-  // Also check localStorage fallback in case orders were saved locally
+  // Also check localStorage fallback
   try {
     const localKeys = ['crc_orders', 'office_orders', 'jawak_panji', 'orders'];
     for (const key of localKeys) {
@@ -220,50 +219,68 @@ export async function getOrdersFromDb(): Promise<OfficeOrder[]> {
 }
 
 export async function saveOrderToDb(order: Omit<OfficeOrder, 'id'>): Promise<string> {
-  const orderData = {
-    ...order,
+  const sanitizedOrder = sanitizeForFirestore({
+    orderNumber: order.orderNumber || 'क्र./CRC/2026/01',
+    orderDate: order.orderDate || new Date().toISOString().split('T')[0],
+    subject: order.subject || '',
+    reference: order.reference || '',
+    content: order.content || '',
+    orderType: order.orderType || 'meeting',
+    tableMode: order.tableMode || 'teachers',
+    selectedTeachers: order.selectedTeachers || [],
+    customTable: order.customTable || null,
+    meetingDate: order.meetingDate || '',
+    meetingTime: order.meetingTime || '',
+    meetingVenue: order.meetingVenue || '',
+    signatoryName: order.signatoryName || '',
+    signatoryDesignation: order.signatoryDesignation || '',
+    copyTo: order.copyTo || [],
     createdAt: new Date().toISOString()
-  };
+  });
 
   let docId = `order_${Date.now()}`;
   try {
-    const docRef = await addDoc(collection(db, 'orders'), orderData);
+    const docRef = await addDoc(collection(db, 'orders'), sanitizedOrder);
     docId = docRef.id;
   } catch (err) {
-    console.warn('Firestore saveOrder error, storing locally:', err);
+    console.error('Firestore saveOrder error:', err);
   }
 
   // Always backup to localStorage as well
   try {
-    const current = await getOrdersFromDb();
-    const updated = [{ ...orderData, id: docId }, ...current.filter(o => o.id !== docId)];
+    const local = localStorage.getItem('crc_orders');
+    let current: OfficeOrder[] = local ? JSON.parse(local) : [];
+    if (!Array.isArray(current)) current = [];
+    const updated = [{ ...sanitizedOrder, id: docId } as OfficeOrder, ...current.filter(o => o.id !== docId)];
     localStorage.setItem('crc_orders', JSON.stringify(updated));
   } catch (e) {
-    console.error(e);
+    console.error('LocalStorage save error:', e);
   }
 
   return docId;
 }
 
 export async function updateOrderInDb(id: string, order: Partial<OfficeOrder>): Promise<void> {
-  const updatePayload = {
+  const sanitizedOrder = sanitizeForFirestore({
     ...order,
     updatedAt: new Date().toISOString()
-  };
+  });
 
   try {
     const docRef = doc(db, 'orders', id);
-    await updateDoc(docRef, updatePayload);
+    await setDoc(docRef, sanitizedOrder, { merge: true });
   } catch (err) {
-    console.warn('Firestore updateOrder error:', err);
+    console.error('Firestore updateOrder error:', err);
   }
 
   try {
-    const current = await getOrdersFromDb();
-    const updated = current.map(o => (o.id === id ? { ...o, ...updatePayload } : o));
+    const local = localStorage.getItem('crc_orders');
+    let current: OfficeOrder[] = local ? JSON.parse(local) : [];
+    if (!Array.isArray(current)) current = [];
+    const updated = current.map(o => (o.id === id ? { ...o, ...sanitizedOrder, id } : o));
     localStorage.setItem('crc_orders', JSON.stringify(updated));
   } catch (e) {
-    console.error(e);
+    console.error('LocalStorage update error:', e);
   }
 }
 
@@ -271,13 +288,18 @@ export async function deleteOrderFromDb(id: string): Promise<void> {
   try {
     await deleteDoc(doc(db, 'orders', id));
   } catch (err) {
-    console.warn('Firestore deleteOrder error:', err);
+    console.error('Firestore deleteOrder error:', err);
   }
 
   try {
-    const current = await getOrdersFromDb();
-    const updated = current.filter(o => o.id !== id);
-    localStorage.setItem('crc_orders', JSON.stringify(updated));
+    const local = localStorage.getItem('crc_orders');
+    if (local) {
+      const current: OfficeOrder[] = JSON.parse(local);
+      if (Array.isArray(current)) {
+        const updated = current.filter(o => o.id !== id);
+        localStorage.setItem('crc_orders', JSON.stringify(updated));
+      }
+    }
   } catch (e) {
     console.error(e);
   }
@@ -308,9 +330,10 @@ export async function getCrcProfileFromDb(): Promise<CrcProfile> {
 }
 
 export async function saveCrcProfileToDb(profile: CrcProfile): Promise<void> {
+  const sanitized = sanitizeForFirestore(profile);
   try {
     const docRef = doc(db, 'settings', 'crc_office');
-    await setDoc(docRef, profile);
+    await setDoc(docRef, sanitized);
   } catch (err) {
     console.warn('Firestore saveProfile error:', err);
   }
@@ -355,9 +378,10 @@ export async function getSchoolsFromDb(): Promise<ClusterSchool[]> {
 }
 
 export async function addSchoolToDb(school: Omit<ClusterSchool, 'id'>): Promise<string> {
+  const sanitized = sanitizeForFirestore(school);
   let docId = `school_${Date.now()}`;
   try {
-    const docRef = await addDoc(collection(db, 'schools'), school);
+    const docRef = await addDoc(collection(db, 'schools'), sanitized);
     docId = docRef.id;
   } catch (err) {
     console.warn('Firestore addSchool error:', err);
@@ -365,7 +389,7 @@ export async function addSchoolToDb(school: Omit<ClusterSchool, 'id'>): Promise<
 
   try {
     const current = await getSchoolsFromDb();
-    const updated = [...current.filter(s => s.id !== docId), { ...school, id: docId }];
+    const updated = [...current.filter(s => s.id !== docId), { ...sanitized, id: docId }];
     localStorage.setItem('crc_schools', JSON.stringify(updated));
   } catch (e) {
     console.error(e);
