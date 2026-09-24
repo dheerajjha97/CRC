@@ -117,6 +117,8 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
   const [saveToast, setSaveToast] = useState(false);
   const [draftSavedToast, setDraftSavedToast] = useState(false);
   const [clonedToast, setClonedToast] = useState(false);
+  const [pdfSuccessToast, setPdfSuccessToast] = useState<string | null>(null);
+  const [pdfErrorToast, setPdfErrorToast] = useState<string | null>(null);
   const [teacherSearch, setTeacherSearch] = useState('');
   const [selectedSchoolFilter, setSelectedSchoolFilter] = useState('');
   const [bulkDeputedSchool, setBulkDeputedSchool] = useState('');
@@ -479,15 +481,19 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
 
   const handleDownloadPdf = async () => {
     setIsDownloadingPdf(true);
+    setPdfSuccessToast(null);
+    setPdfErrorToast(null);
     try {
       // Auto-save to ensure letter is logged in Jawak Panji
       await handleSave('final', true);
       const pdfFilename = getOrderPdfFilename(orderNumber, 'CRC_Office_Order');
       await downloadOrderAsPdf('official-letter-document', pdfFilename);
-      setSaveToast(true);
-      setTimeout(() => setSaveToast(false), 4000);
+      setPdfSuccessToast(pdfFilename);
+      setTimeout(() => setPdfSuccessToast(null), 5000);
     } catch (err) {
       console.error('PDF error:', err);
+      setPdfErrorToast('PDF तैयार करने में त्रुटि हुई। आप सीधे "प्रिंट (A4)" पर क्लिक करके "Save as PDF" भी चुन सकते हैं।');
+      setTimeout(() => setPdfErrorToast(null), 8000);
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -569,6 +575,19 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
+          {pdfSuccessToast && (
+            <div className="flex items-center gap-2 bg-indigo-50 text-indigo-900 border border-indigo-300 px-3 py-1.5 rounded-xl text-xs font-semibold animate-in fade-in shadow-xs">
+              <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>📄 PDF डाउनलोड हो गया: {pdfSuccessToast}</span>
+            </div>
+          )}
+
+          {pdfErrorToast && (
+            <div className="flex items-center gap-2 bg-red-50 text-red-900 border border-red-300 px-3 py-1.5 rounded-xl text-xs font-semibold animate-in fade-in shadow-xs">
+              <span>{pdfErrorToast}</span>
+            </div>
+          )}
+
           {clonedToast && (
             <div className="flex items-center gap-2 bg-purple-50 text-purple-900 border border-purple-300 px-3 py-1.5 rounded-xl text-xs font-semibold animate-in fade-in shadow-xs">
               <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />

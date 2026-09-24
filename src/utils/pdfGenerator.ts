@@ -24,6 +24,7 @@ export function getOrderPdfFilename(letterNumber?: string, fallbackPrefix: strin
 
 /**
  * Downloads the official letter document as a high-resolution, perfectly-formatted A4 PDF.
+ * File name is set to the official Letter/Order Number.
  */
 export async function downloadOrderAsPdf(elementId: string, filename: string = 'Office_Order.pdf'): Promise<void> {
   const element = document.getElementById(elementId);
@@ -38,50 +39,31 @@ export async function downloadOrderAsPdf(elementId: string, filename: string = '
     activeInput.blur();
   }
 
-  // Create an off-screen clone with exact A4 portrait dimensions
-  const clone = element.cloneNode(true) as HTMLElement;
-  clone.id = 'temp-pdf-render-clone';
-  
-  // Remove interactive UI buttons, inputs, edit toolbars from clone
-  const unwantedElements = clone.querySelectorAll(
-    '.print\\:hidden, .print-hidden, [data-ignore-print="true"], button, select, input[type="file"], textarea, #btn-toggle-inline-edit'
-  );
-  unwantedElements.forEach(el => el.remove());
-
-  // Set pristine A4 styling on clone (794px corresponds to 210mm at 96 DPI)
-  clone.style.width = '794px';
-  clone.style.maxWidth = '794px';
-  clone.style.minHeight = '1123px'; // A4 height at 96 DPI
-  clone.style.boxShadow = 'none';
-  clone.style.border = 'none';
-  clone.style.borderRadius = '0';
-  clone.style.margin = '0';
-  clone.style.padding = '36px 44px';
-  clone.style.backgroundColor = '#ffffff';
-  clone.style.color = '#0f172a';
-  clone.style.fontFamily = "'Mukta', 'Noto Sans Devanagari', sans-serif";
-  clone.style.position = 'fixed';
-  clone.style.left = '-99999px';
-  clone.style.top = '0';
-  clone.style.zIndex = '-99999';
-  clone.style.visibility = 'visible';
-  clone.style.opacity = '1';
-
-  document.body.appendChild(clone);
+  const finalFilename = getOrderPdfFilename(filename);
 
   try {
-    // Wait slightly for fonts and images to be ready
-    await new Promise(r => setTimeout(r, 100));
-
-    const canvas = await html2canvas(clone, {
+    // High-resolution canvas capture directly from document
+    const canvas = await html2canvas(element, {
       scale: 2.0, // High-DPI crisp Devanagari text
       useCORS: true,
       allowTaint: true,
       logging: false,
       backgroundColor: '#ffffff',
-      width: 794,
-      windowWidth: 794
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      ignoreElements: (el) => {
+        return (
+          el.classList.contains('print:hidden') ||
+          el.classList.contains('print-hidden') ||
+          el.getAttribute('data-ignore-print') === 'true' ||
+          el.id === 'btn-toggle-inline-edit'
+        );
+      }
     });
+
+    if (!canvas || canvas.width === 0 || canvas.height === 0) {
+      throw new Error('Canvas rendering produced an empty image');
+    }
 
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -90,24 +72,22 @@ export async function downloadOrderAsPdf(elementId: string, filename: string = '
       compress: true
     });
 
-    const pageWidth = 210; // A4 mm
-    const pageHeight = 297; // A4 mm
-    const pageCanvasHeight = Math.floor((canvas.width * pageHeight) / pageWidth);
-    
-    // Check total height in mm
+    const pageWidth = 210; // A4 mm width
+    const pageHeight = 297; // A4 mm height
     const totalMmHeight = (canvas.height * pageWidth) / canvas.width;
 
-    if (totalMmHeight <= pageHeight + 4) {
+    if (totalMmHeight <= pageHeight + 5) {
       // 1-Page Letter (Standard CRC Office Order)
-      const imgData = canvas.toDataURL('image/png', 1.0);
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
       const renderHeight = Math.min(totalMmHeight, pageHeight);
-      pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, renderHeight, undefined, 'FAST');
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, renderHeight, undefined, 'FAST');
     } else {
       // Multi-Page Letter: Clean Page-by-Page Canvas Slicing
+      const pageCanvasHeight = Math.floor((canvas.width * pageHeight) / pageWidth);
       let renderedHeight = 0;
       let pageIndex = 0;
 
-      while (renderedHeight < canvas.height - 20) {
+      while (renderedHeight < canvas.height - 15) {
         if (pageIndex > 0) {
           pdf.addPage('a4', 'portrait');
         }
@@ -127,9 +107,9 @@ export async function downloadOrderAsPdf(elementId: string, filename: string = '
             0, 0, canvas.width, chunkHeight
           );
 
-          const chunkData = pageCanvas.toDataURL('image/png', 1.0);
+          const chunkData = pageCanvas.toDataURL('image/jpeg', 0.98);
           const chunkMmHeight = (chunkHeight * pageWidth) / canvas.width;
-          pdf.addImage(chunkData, 'PNG', 0, 0, pageWidth, chunkMmHeight, undefined, 'FAST');
+          pdf.addImage(chunkData, 'JPEG', 0, 0, pageWidth, chunkMmHeight, undefined, 'FAST');
         }
 
         renderedHeight += pageCanvasHeight;
@@ -137,19 +117,26 @@ export async function downloadOrderAsPdf(elementId: string, filename: string = '
       }
     }
 
-    // Clean filename
-    const cleanFilename = (filename || 'Office_Order.pdf')
-      .replace(/[\/\\?%*:|"<>]/g, '_')
-      .replace(/\s+/g, '_')
-      .trim();
-    const finalFilename = cleanFilename.endsWith('.pdf') ? cleanFilename : `${cleanFilename}.pdf`;
+    // Trigger download via Blob URL (ensures compatibility with all browser sandboxes)
+    const blob = pdf.output('blob');
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = finalFilename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
 
-    pdf.save(finalFilename);
-  } finally {
-    // Clean up temporary DOM clone
-    if (document.body.contains(clone)) {
-      document.body.removeChild(clone);
-    }
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+      URL.revokeObjectURL(blobUrl);
+    }, 1500);
+
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    throw error;
   }
 }
 
