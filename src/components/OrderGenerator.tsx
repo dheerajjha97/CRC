@@ -506,7 +506,7 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Action Bar */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-indigo-50 text-indigo-700 rounded-xl">
             <FileText className="w-5 h-5" />
@@ -599,9 +599,9 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
       </div>
 
       {/* Grid Layout: Controls Sidebar + Document Live Preview */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start print:block print:w-full">
         {/* Left Column: Form & Table Controls */}
-        <div className="lg:col-span-5 space-y-5">
+        <div className="lg:col-span-5 space-y-5 print:hidden">
           {/* Quick Template Selector */}
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
@@ -1281,8 +1281,8 @@ export const OrderGenerator: React.FC<OrderGeneratorProps> = ({
         </div>
 
         {/* Right Column: Official A4 Live Preview Document */}
-        <div className="lg:col-span-7">
-          <div className="sticky top-4">
+        <div className="lg:col-span-7 print:w-full print:block">
+          <div className="sticky top-4 print:static">
             <OfficialLetterView
               order={currentConstructedOrder}
               profile={profile}

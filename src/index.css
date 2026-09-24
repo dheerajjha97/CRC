@@ -6,11 +6,94 @@
   }
 }
 
+/* Ensure bullet points and ordered lists are always displayed with proper markers and indentation */
+.order-body-content ul,
+.prose ul,
+.rich-editor-content ul,
+[contenteditable="true"] ul {
+  list-style-type: disc !important;
+  list-style-position: outside !important;
+  padding-left: 1.75rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.order-body-content ol,
+.prose ol,
+.rich-editor-content ol,
+[contenteditable="true"] ol {
+  list-style-type: decimal !important;
+  list-style-position: outside !important;
+  padding-left: 1.75rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.order-body-content li,
+.prose li,
+.rich-editor-content li,
+[contenteditable="true"] li {
+  display: list-item !important;
+  margin-bottom: 0.35rem !important;
+  padding-left: 0.25rem !important;
+  line-height: 1.65 !important;
+}
+
+/* Print Isolation CSS */
 @media print {
-  body {
-    background-color: white !important;
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
   }
-  .print\:hidden {
+
+  /* Reset body */
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Mukta', 'Noto Sans Devanagari', sans-serif !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide everything on page by default */
+  header,
+  nav,
+  aside,
+  footer,
+  .print\:hidden,
+  .print-hidden,
+  [data-ignore-print="true"],
+  button,
+  input,
+  select,
+  textarea {
     display: none !important;
+  }
+
+  /* Hide modal backgrounds and non-letter components */
+  .fixed.inset-0 {
+    position: static !important;
+    background: none !important;
+    padding: 0 !important;
+  }
+
+  /* Ensure the letter document expands and occupies standard A4 page cleanly */
+  #official-letter-document,
+  #history-modal-letter-document,
+  .official-letter-page {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+
+  /* Force print background colors for badges, headers, and tables */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }

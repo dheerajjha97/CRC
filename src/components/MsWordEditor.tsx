@@ -242,6 +242,39 @@ export const MsWordEditor: React.FC<MsWordEditorProps> = ({
     executeCommand('insertHTML', sigHtml);
   };
 
+  const handleInsertBulletListTemplate = () => {
+    const bulletHtml = `
+      <ul style="list-style-type: disc; padding-left: 28px; margin: 10px 0;">
+        <li>बिंदु संख्या 1 यहाँ दर्ज करें</li>
+        <li>बिंदु संख्या 2 यहाँ दर्ज करें</li>
+        <li>बिंदु संख्या 3 यहाँ दर्ज करें</li>
+      </ul><p><br/></p>
+    `;
+    executeCommand('insertHTML', bulletHtml);
+  };
+
+  const handleInsertNumberedListTemplate = () => {
+    const numHtml = `
+      <ol style="list-style-type: decimal; padding-left: 28px; margin: 10px 0;">
+        <li>प्रथम निर्देश यहाँ दर्ज करें</li>
+        <li>द्वितीय निर्देश यहाँ दर्ज करें</li>
+        <li>तृतीय निर्देश यहाँ दर्ज करें</li>
+      </ol><p><br/></p>
+    `;
+    executeCommand('insertHTML', numHtml);
+  };
+
+  const handleInsertDevanagariListTemplate = () => {
+    const devHtml = `
+      <ul style="list-style-type: none; padding-left: 8px; margin: 10px 0;">
+        <li style="margin-bottom: 6px;"><strong>(क)</strong> प्रथम शासकीय बिंदु यहाँ दर्ज करें</li>
+        <li style="margin-bottom: 6px;"><strong>(ख)</strong> द्वितीय शासकीय बिंदु यहाँ दर्ज करें</li>
+        <li style="margin-bottom: 6px;"><strong>(ग)</strong> तृतीय शासकीय बिंदु यहाँ दर्ज करें</li>
+      </ul><p><br/></p>
+    `;
+    executeCommand('insertHTML', devHtml);
+  };
+
   const handleInsertDivider = () => {
     executeCommand('insertHTML', '<hr style="border: 0; border-top: 1.5px solid #94a3b8; margin: 16px 0;" /><p><br/></p>');
   };
@@ -656,6 +689,36 @@ export const MsWordEditor: React.FC<MsWordEditorProps> = ({
             {/* TAB 2: INSERT */}
             {activeTab === 'insert' && (
               <div className="flex items-center flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleInsertBulletListTemplate}
+                  className="px-2.5 py-1.5 bg-white hover:bg-indigo-50 border border-slate-300 hover:border-indigo-300 text-slate-800 hover:text-indigo-700 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-all shadow-2xs"
+                  title="बुलेट बिंदु सूची डालें (• बिंदु 1, बिंदु 2)"
+                >
+                  <List className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>• बुलेट बिंदु सूची</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleInsertNumberedListTemplate}
+                  className="px-2.5 py-1.5 bg-white hover:bg-indigo-50 border border-slate-300 hover:border-indigo-300 text-slate-800 hover:text-indigo-700 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-all shadow-2xs"
+                  title="क्रमांकित सूची डालें (1., 2., 3.)"
+                >
+                  <ListOrdered className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>1. क्रमांकित बिंदु</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleInsertDevanagariListTemplate}
+                  className="px-2.5 py-1.5 bg-white hover:bg-indigo-50 border border-slate-300 hover:border-indigo-300 text-slate-800 hover:text-indigo-700 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-all shadow-2xs"
+                  title="शासकीय बिंदु डालें ((क), (ख), (ग))"
+                >
+                  <span className="font-bold text-indigo-600 text-xs">(क)</span>
+                  <span>शासकीय बिंदु (क, ख)</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => handleInsertTable(3, 4)}

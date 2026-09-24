@@ -403,10 +403,10 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
 
       {/* Modal / Overlay for Official Letter Inspection & Inline Editing */}
       {selectedPreviewOrder && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-white w-full max-w-4xl max-h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:static print:bg-transparent">
+          <div className="bg-white w-full max-w-4xl max-h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 print:shadow-none print:rounded-none print:max-h-none print:max-w-none">
             {/* Modal Header */}
-            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+            <div className="p-4 bg-slate-900 text-white flex items-center justify-between print:hidden">
               <div className="flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-amber-400" />
                 <div>
@@ -449,7 +449,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto bg-slate-100 flex-1">
+            <div className="p-6 overflow-y-auto bg-slate-100 flex-1 print:p-0 print:bg-white print:overflow-visible">
               <OfficialLetterView
                 order={selectedPreviewOrder}
                 profile={profile}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { OfficeOrder, CrcProfile, SelectedTeacherInOrder, CustomTableData } from '../types';
 import { BiharEducationLogo } from './BiharEducationLogo';
 import { MsWordEditor } from './MsWordEditor';
+import { formatOrderContentToHtml } from '../utils/textFormatter';
 import { 
   Edit3, 
   Check, 
@@ -333,7 +334,7 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
       {/* Official A4 Government Document Container */}
       <div
         id={id}
-        className={`bg-white text-slate-900 border border-slate-300 shadow-sm mx-auto overflow-hidden font-['Mukta',sans-serif] ${
+        className={`official-letter-page official-letter-printable-target bg-white text-slate-900 border border-slate-300 shadow-sm mx-auto overflow-hidden font-['Mukta',sans-serif] ${
           isPrintPreview ? 'max-w-none shadow-none border-none p-0' : 'max-w-[850px] p-8 md:p-12'
         }`}
         style={{
@@ -796,7 +797,7 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
             </div>
           ) : (
             <div 
-              className="order-body-content text-sm md:text-[15px] leading-relaxed text-justify text-slate-900 prose max-w-none [&>p]:mb-3 [&>p]:text-justify [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5"
+              className="order-body-content text-sm md:text-[15px] leading-relaxed text-justify text-slate-900 prose max-w-none [&>p]:mb-3 [&>p]:text-justify [&>ul]:list-disc [&>ul]:pl-6 [&>ol]:list-decimal [&>ol]:pl-6"
               style={{ 
                 fontSize: '14.5px', 
                 lineHeight: '1.75', 
@@ -804,13 +805,8 @@ export const OfficialLetterView: React.FC<OfficialLetterViewProps> = ({
                 textJustify: 'inter-word',
                 color: '#0f172a'
               }}
-            >
-              {/<[a-z][\s\S]*>/i.test(activeOrder.content || '') ? (
-                <div dangerouslySetInnerHTML={{ __html: activeOrder.content || '' }} />
-              ) : (
-                <div style={{ whiteSpace: 'pre-line' }}>{activeOrder.content}</div>
-              )}
-            </div>
+              dangerouslySetInnerHTML={{ __html: formatOrderContentToHtml(activeOrder.content || '') }}
+            />
           )}
         </div>
 

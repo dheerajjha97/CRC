@@ -10,7 +10,8 @@ import {
   HelpCircle,
   RefreshCw,
   Layers,
-  Database
+  Database,
+  BarChart3
 } from 'lucide-react';
 import { 
   Teacher, 
@@ -34,6 +35,7 @@ import {
   deleteSchoolFromDb,
   DEFAULT_CRC_PROFILE
 } from './services/dbService';
+import { Dashboard } from './components/Dashboard';
 import { OrderGenerator } from './components/OrderGenerator';
 import { OrderHistory } from './components/OrderHistory';
 import { TeacherManagement } from './components/TeacherManagement';
@@ -42,7 +44,7 @@ import { AiOrderAssistant } from './components/AiOrderAssistant';
 import { BiharEducationLogo } from './components/BiharEducationLogo';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'create_order' | 'history' | 'teachers' | 'settings' | 'ai_assistant'>('create_order');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'create_order' | 'history' | 'teachers' | 'settings' | 'ai_assistant'>('dashboard');
   
   // App Data State
   const [profile, setProfile] = useState<CrcProfile>(DEFAULT_CRC_PROFILE);
@@ -177,6 +179,20 @@ export function App() {
             <nav className="flex items-center gap-1 sm:gap-2">
               <button
                 type="button"
+                onClick={() => setActiveTab('dashboard')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'dashboard'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+                title="सांख्यिकी एवं विश्लेषण डैशबोर्ड"
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span>डैशबोर्ड</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => {
                   setEditingOrder(null);
                   setActiveTab('create_order');
@@ -263,6 +279,23 @@ export function App() {
           </div>
         ) : (
           <>
+            {activeTab === 'dashboard' && (
+              <Dashboard
+                orders={orders}
+                profile={profile}
+                teachers={teachers}
+                onNavigateToCreate={() => {
+                  setEditingOrder(null);
+                  setActiveTab('create_order');
+                }}
+                onNavigateToHistory={() => setActiveTab('history')}
+                onSelectOrder={(order) => {
+                  setEditingOrder(order);
+                  setActiveTab('create_order');
+                }}
+              />
+            )}
+
             {activeTab === 'create_order' && (
               <OrderGenerator
                 profile={profile}
